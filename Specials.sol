@@ -22,7 +22,7 @@ import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract CardsV2 is ERC721Enumerable, AccessControlEnumerable, Ownable {
+contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
     using Strings for uint256;
     /**********************************************
@@ -101,10 +101,10 @@ contract CardsV2 is ERC721Enumerable, AccessControlEnumerable, Ownable {
                     CONSTRUCTOR
     **********************************************                    
     **********************************************/
-    constructor() ERC721("Dark Earth Collection", "DEC") {
+    constructor() ERC721("Dark Earth Specials", "DES") {
 
         // URI por defecto
-        _baseURIExtend = "https://nfthub.darkearth.gg/cards/";
+        _baseURIExtend = "https://nfthub.darkearth.gg/specialcards/";
 
         // Dirección que comprueba la firma
         signAddr = _msgSender();
