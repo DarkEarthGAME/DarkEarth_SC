@@ -105,7 +105,7 @@ contract CardsV2 is ERC721Enumerable, AccessControlEnumerable, Ownable {
                     CONSTRUCTOR
     **********************************************                    
     **********************************************/
-    constructor() ERC721("Dark Earth Cards", "DECards") {
+    constructor() ERC721("Dark Earth Collection", "DE") {
 
         // URI por defecto
         _baseURIExtend = "https://nfthub.darkearth.gg/cards/";
