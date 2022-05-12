@@ -97,6 +97,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         uint256 limit;
         Counters.Counter limitCounter;
         bool active;
+        bool specialReward;
     }
 
     mapping(uint256 => reward) private rewardsCollect;
@@ -419,7 +420,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     **********************************************                    
     **********************************************/
 
-    function addReward(uint256[] memory idCardNeeds, uint256[] memory rewards, uint256 limit, bool activo) public {
+    function addReward(uint256[] memory idCardNeeds, uint256[] memory rewards, uint256 limit, bool activo, bool special) public {
         require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
 
         reward memory aux;
@@ -427,6 +428,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         aux.nftReward = rewards;
         aux.active = activo;
         aux.limit = limit;
+        aux.specialReward = special;
 
         rewardsCollect[_rewardsTracker.current()] = aux;
         _rewardsTracker.increment();
@@ -438,15 +440,21 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         rewardsCollect[rewardId].active = toggle;
     }
 
+    function setOnOffSpecialReward(uint256 rewardId, bool toggle) public {
+        require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
+
+        rewardsCollect[rewardId].specialReward = toggle;
+    }
+
     function setLimitReward(uint256 rewardId, uint256 limit) public {
         require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
 
         rewardsCollect[rewardId].limit = limit;
     }
 
-    function getReward(uint id) public view returns(uint256[] memory nftINeed, uint256[] memory nftRewards, uint256 limit, uint256 limitNow, bool activo) {
+    function getReward(uint id) public view returns(uint256[] memory nftINeed, uint256[] memory nftRewards, uint256 limit, uint256 limitNow, bool activo, bool specialReward) {
         require(id < _rewardsTracker.current(), "This rewards not exist.");
-        return (rewardsCollect[id].nftNeeds, rewardsCollect[id].nftReward, rewardsCollect[id].limit, rewardsCollect[id].limitCounter.current(), rewardsCollect[id].active);
+        return (rewardsCollect[id].nftNeeds, rewardsCollect[id].nftReward, rewardsCollect[id].limit, rewardsCollect[id].limitCounter.current(), rewardsCollect[id].active, rewardsCollect[id].specialReward);
     }
 
     function canTakeReward(uint id) public view returns(bool) {
@@ -476,7 +484,11 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
             require(rewardsCollect[id].limitCounter.current() < rewardsCollect[id].limit, "Finished claims. Reached limit.");
         }
 
-        _specialCards.adminMint(_msgSender(), rewardsCollect[id].nftReward);
+        if(rewardsCollect[id].specialReward) {
+            _specialCards.adminMint(_msgSender(), rewardsCollect[id].nftReward);
+        } else {
+            adminMint(_msgSender(), rewardsCollect[id].nftReward);
+        }
         rewardsCollect[id].limitCounter.increment();
 
     }
