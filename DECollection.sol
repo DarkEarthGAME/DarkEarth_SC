@@ -22,7 +22,9 @@ import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract CardsV2 is ERC721Enumerable, AccessControlEnumerable, Ownable {
+import "./DESpecials.sol";
+
+contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
     using Strings for uint256;
     /**********************************************
@@ -36,6 +38,9 @@ contract CardsV2 is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
     // Walet para comprobar la firma
     address private signAddr;
+
+    // Smart Contract - Special Cards
+    DESpecials internal _specialCards;
 
     string private _baseURIExtend;
 
@@ -131,6 +136,16 @@ contract CardsV2 is ERC721Enumerable, AccessControlEnumerable, Ownable {
     function withdraw(uint amount) external {
         require(hasRole(WITHDRAW_ROLE, _msgSender()), "Exception: must have withdraw role to retire funds");
         payable(_msgSender()).transfer(amount);
+    }
+
+    /**********************************************
+    **********************************************
+                    SPECIAL CARDS
+    **********************************************                    
+    **********************************************/
+
+    function setSpecialCardsAddress(address addr) public onlyOwner {
+        _specialCards = DESpecials(addr);
     }
 
     /**********************************************
@@ -243,6 +258,7 @@ contract CardsV2 is ERC721Enumerable, AccessControlEnumerable, Ownable {
         }
     }
 
+    
     function mintRewardCards(address _to, uint[] memory cardsIds) internal {
         require(!suspended, "The contract is temporaly suspended.");
 
@@ -251,6 +267,7 @@ contract CardsV2 is ERC721Enumerable, AccessControlEnumerable, Ownable {
             mint(_to, cardsIds[i], getGeneralIdCardSupply(cardsIds[i]));
         }
     }
+    
 
     function adminMint(address _to, uint[] memory cardsIds) public {
         require(!suspended, "The contract is temporaly suspended.");
@@ -455,15 +472,13 @@ contract CardsV2 is ERC721Enumerable, AccessControlEnumerable, Ownable {
         require(rewardsCollect[id].active, "This reward is not active.");
         require(checkIdCards(_msgSender(), id), "You do not have the necessary cards to claim the reward.");
         
-                
         if(rewardsCollect[id].limit != 0) {
             require(rewardsCollect[id].limitCounter.current() < rewardsCollect[id].limit, "Finished claims. Reached limit.");
         }
 
-        //rewardsCollect[id].walletsClaimed[rewardsCollect[id].limitCounter.current()] = _msgSender();
+        _specialCards.adminMint(_msgSender(), rewardsCollect[id].nftReward);
         rewardsCollect[id].limitCounter.increment();
-        mintRewardCards(_msgSender(), rewardsCollect[id].nftReward);
-        
+
     }
 
     /*
@@ -847,7 +862,7 @@ contract CardsV2 is ERC721Enumerable, AccessControlEnumerable, Ownable {
             _msgUri = string(_tokenType);
         }
             
-        return string(abi.encodePacked(_base, _msgUri));
+        return string(abi.encodePacked(_base, _msgUri, ".json"));
     }
 
     function setBaseURI(string memory newUri) external onlyOwner() {

@@ -22,7 +22,7 @@ import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
+contract DESpecials is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
     using Strings for uint256;
     /**********************************************
@@ -61,7 +61,6 @@ contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
     Counters.Counter private _typesTracker;
 
     struct nftSup {
-        uint256 generalIdCard; // ID General de la carta
         uint256 sMax;
         Counters.Counter sNow;
         Counters.Counter burned;
@@ -72,7 +71,6 @@ contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
     // --> Control tokenId + INFO
     struct nftInfo {
-        uint256 idCard; // ID General de la carta
         uint256 serialNumber;
         uint256 tipo;
         bool usado;
@@ -126,8 +124,6 @@ contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
     **********************************************                    
     **********************************************/
 
-    receive() external payable {}
-
     function withdraw(uint amount) external {
         require(hasRole(WITHDRAW_ROLE, _msgSender()), "Exception: must have withdraw role to retire funds");
         payable(_msgSender()).transfer(amount);
@@ -140,36 +136,31 @@ contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
     **********************************************/
 
     // Añadir Supply individual
-    function addSupply(uint idC, uint tipo, uint amount) public {
+    function addSupply(uint tipo, uint amount) public {
         require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
 
-        nftSupply[tipo].generalIdCard = idC;
         nftSupply[tipo].sMax = amount;
 
     }
 
     // Añadir supply masivo
-    function addBulkSupply(uint[] memory idGeneral, uint[] memory tipos, uint[] memory amount) public {
+    function addBulkSupply(uint[] memory tipos, uint[] memory amount) public {
         require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
 
         for(uint i = 0; i < tipos.length; i++) {
-            addSupply(idGeneral[i], tipos[i], amount[i]);
+            addSupply(tipos[i], amount[i]);
         }
 
     }
 
     // Añadir supply masivo por tipo general
-    function addBulkSupplyByGeneralType(uint idGeneral, uint[] memory tipos, uint[] memory amount) public {
+    function addBulkSupplyByGeneralType(uint[] memory tipos, uint[] memory amount) public {
         require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
 
         for(uint i = 0; i < tipos.length; i++) {
-            addSupply(idGeneral, tipos[i], amount[i]);
+            addSupply(tipos[i], amount[i]);
         }
 
-    }
-
-    function getGeneralIdCardSupply(uint tipo) public view returns(uint) {
-        return nftSupply[tipo].generalIdCard;
     }
 
     function getMaxSupply(uint tipo) public view returns(uint) {
@@ -239,7 +230,7 @@ contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
         for(uint i = 0; i < cardsIds.length; i++) {
             require(checkSupply(cardsIds[i]), "SUPPLY ERROR: Not enough of this type.");
-            mint(_msgSender(), cardsIds[i], getGeneralIdCardSupply(cardsIds[i]));
+            mint(_msgSender(), cardsIds[i]);
         }
     }
 
@@ -248,7 +239,7 @@ contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
         for(uint i = 0; i < cardsIds.length; i++) {
             require(checkSupply(cardsIds[i]), "SUPPLY ERROR: Not enough of this type.");
-            mint(_to, cardsIds[i], getGeneralIdCardSupply(cardsIds[i]));
+            mint(_to, cardsIds[i]);
         }
     }
 
@@ -258,11 +249,11 @@ contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
         for(uint i = 0; i < cardsIds.length; i++) {
             require(checkSupply(cardsIds[i]), "SUPPLY ERROR: Not enough of this type.");
-            mint(_to, cardsIds[i], getGeneralIdCardSupply(cardsIds[i]));
+            mint(_to, cardsIds[i]);
         }
     }
 
-    function mint(address _to, uint _tipo, uint _idCard) internal {
+    function mint(address _to, uint _tipo) internal {
         require(!suspended, "The contract is temporaly suspended"); 
 
         // Aumento el Supply Actual de ese tipo
@@ -270,7 +261,6 @@ contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
         // Guardo ID del token -> Tipo
         tokenInfo[_tokenIdTracker.current()].serialNumber = nftSupply[_tipo].sNow.current();
-        tokenInfo[_tokenIdTracker.current()].idCard = _idCard;
         tokenInfo[_tokenIdTracker.current()].tipo = _tipo;
         tokenInfo[_tokenIdTracker.current()].usado = false;
 
@@ -537,7 +527,7 @@ contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
             while(!ok && counter < tokenIds.length) {
 
-                tipo = getTokenIdCard(tokenIds[counter]);
+                tipo = getTokenType(tokenIds[counter]);
 
                 if(_nftNeeds[i] == tipo) {
                     checkingCards[i] = true;
@@ -575,7 +565,7 @@ contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
             while(!ok && counter < tokenIds.length) {
 
-                tipo = getTokenIdCard(tokenIds[counter]);
+                tipo = getTokenType(tokenIds[counter]);
 
                 if(_nftNeeds[i] == tipo) {
                     checkingCards[i] = true;
@@ -615,9 +605,9 @@ contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
     **********************************************                    
     **********************************************/
 
-    function getTokenInfo(uint256 tokenId) public view returns (uint idCard, uint256 typeNft, bool used) {
+    function getTokenInfo(uint256 tokenId) public view returns (uint256 typeNft, bool used) {
         require(tokenId < _tokenIdTracker.current(), "This token does not exist.");
-        return (tokenInfo[tokenId].idCard, tokenInfo[tokenId].tipo, tokenInfo[tokenId].usado);
+        return (tokenInfo[tokenId].tipo, tokenInfo[tokenId].usado);
     }
 
     function getTokenSerial(uint256 tokenId) public view returns (string memory) {
@@ -672,11 +662,6 @@ contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
     function getTokenType(uint256 tokenId) public view returns (uint256) {
         require(tokenId < _tokenIdTracker.current(), "That token does not exist.");
         return tokenInfo[tokenId].tipo;
-    }
-
-    function getTokenIdCard(uint256 tokenId) public view returns (uint256) {
-        require(tokenId < _tokenIdTracker.current(), "That token does not exist.");
-        return tokenInfo[tokenId].idCard;
     }
 
     
@@ -847,7 +832,7 @@ contract Specials is ERC721Enumerable, AccessControlEnumerable, Ownable {
             _msgUri = string(_tokenType);
         }
             
-        return string(abi.encodePacked(_base, _msgUri));
+        return string(abi.encodePacked(_base, _msgUri, ".json"));
     }
 
     function setBaseURI(string memory newUri) external onlyOwner() {
