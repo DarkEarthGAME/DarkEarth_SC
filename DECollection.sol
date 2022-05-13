@@ -157,6 +157,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
     // Añadir Supply individual
     function addSupply(uint idC, uint tipo, uint amount) public {
+        require(!suspended, "The contract is temporaly suspended.");
         require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
 
         nftSupply[tipo].generalIdCard = idC;
@@ -196,6 +197,10 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         return nftSupply[tipo].sNow.current();
     }
 
+    function getBurnedAmount(uint tipo) public view returns(uint) {
+        return nftSupply[tipo].burned.current();
+    }
+
     // Comprobar el Supply de cada carta
     function checkSupply(uint tipo) internal view returns (bool) {
 
@@ -224,7 +229,17 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     **********************************************/
 
     function burn(uint256 tokenId) public virtual {
-        require(hasRole(BURNER_ROLE, _msgSender()) || ownerOf(tokenId) == _msgSender(), "Exception on Burn: Your are not the owner");
+        require(!suspended, "The contract is temporaly suspended.");
+        require(ownerOf(tokenId) == _msgSender(), "Exception on Burn: Your are not the owner");
+
+        uint tipo = getTokenType(tokenId);
+        nftSupply[tipo].burned.increment();
+
+        _burn(tokenId);
+    }
+
+    function adminBurn(uint256 tokenId) public virtual {
+        require(hasRole(BURNER_ROLE, _msgSender()), "Exception on Burn: You do not have permission");
 
         uint tipo = getTokenType(tokenId);
         nftSupply[tipo].burned.increment();
@@ -421,6 +436,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     **********************************************/
 
     function addReward(uint256[] memory idCardNeeds, uint256[] memory rewards, uint256 limit, bool activo, bool special) public {
+        require(!suspended, "The contract is temporaly suspended.");
         require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
 
         reward memory aux;
@@ -435,18 +451,21 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     }
 
     function setOnOffReward(uint256 rewardId, bool toggle) public {
+        require(!suspended, "The contract is temporaly suspended.");
         require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
 
         rewardsCollect[rewardId].active = toggle;
     }
 
     function setOnOffSpecialReward(uint256 rewardId, bool toggle) public {
+        require(!suspended, "The contract is temporaly suspended.");
         require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
 
         rewardsCollect[rewardId].specialReward = toggle;
     }
 
     function setLimitReward(uint256 rewardId, uint256 limit) public {
+        require(!suspended, "The contract is temporaly suspended.");
         require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
 
         rewardsCollect[rewardId].limit = limit;
@@ -476,6 +495,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     }
 
     function takeReward(uint id) public {
+        require(!suspended, "The contract is temporaly suspended.");
         require(id < _rewardsTracker.current(), "This rewards not exist.");
         require(rewardsCollect[id].active, "This reward is not active.");
         require(checkIdCards(_msgSender(), id), "You do not have the necessary cards to claim the reward.");
@@ -492,61 +512,6 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         rewardsCollect[id].limitCounter.increment();
 
     }
-
-    /*
-    function checkWalletReward(address _owner, uint256 rewardId) internal view returns(bool) {
-        bool respuesta = false;
-        uint256 contador;
-        while(!respuesta && contador < rewardsCollect[rewardId].limitCounter.current()) {
-            if(rewardsCollect[rewardId].walletsClaimed[contador] == _owner) {
-                respuesta = true;
-            }
-        }
-
-        return respuesta;
-    }
-    */
-
-    /* VERSION CON ID DE CARTAS ORIGINALES
-
-    function checkCards(address _owner, uint256 rId) internal returns(bool) {
-        //uint256[] memory userTokenTypes = getUserTokenTypes(_owner);
-        uint256[] memory tokenIds = getTokenNotUsedIds(_owner);
-        uint256[] memory _nftNeeds = rewardsCollect[rId].nftNeeds;
-        bool[] memory checkingCards = new bool[](_nftNeeds.length);
-
-        bool respuesta = false;
-        uint256 tipo;
-
-        for(uint i = 0; i < _nftNeeds.length; i++) {
-
-            bool ok = false;
-            uint256 counter = 0;
-
-            while(!ok && counter < tokenIds.length) {
-
-                tipo = getTokenType(tokenIds[counter]);
-
-                if(_nftNeeds[i] == tipo) {
-                    checkingCards[i] = true;
-                    tokenInfo[tokenIds[counter]].usado = true;
-                    ok = true;
-                }
-
-                counter += 1;
-            }
-
-        }
-
-        // Se pueden devolver las que faltan para completar
-
-        if(allTrue(checkingCards)) {
-            respuesta = true;
-        }
-
-        return respuesta;
-    }
-    */
 
     function checkIdCards(address _owner, uint256 rId) internal returns(bool) {
         //uint256[] memory userTokenTypes = getUserTokenTypes(_owner);
