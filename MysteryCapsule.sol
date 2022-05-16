@@ -24,25 +24,6 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable, Ownable {
-
-    /*
-    ---------------------------
-           TODO TODO TODO
-    ---------------------------
-
-    - Accept USDC (Revisar seguridad)
-
-    - Withdraw USDC (Revisar seguridad)
-
-    - Getter total personas en la WL (Revisar si está bien hecho y seguridad)
-
-    - Revisar bool publicSale para venta pública (Agujeros de seguridad)
-
-    - Revisar bool suspendedWL para suspender añadir WL
-        Se ha separado de la variable suspend general para poder suspender el SC (minteo)
-        pero poder añadir WL a la gente. Así podrán ver la web sin interactuar con ella.
-
-    - Revisar bool approvedTransfer para permitir las transferencias de NFTs
  
     /**********************************************
      **********************************************
@@ -174,8 +155,21 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable, Ownable {
     // ------------------------------
 
     function burn(uint256 tokenId) public virtual {
+        require(!suspended, "The contract is temporaly suspended");
         //require(hasRole(BURNER_ROLE, _msgSender()), "Exception in Burn: caller has no BURNER ROLE");
-        require(ownerOf(tokenId) == _msgSender(), "Exception on Burn:Your are not the owner");
+        require(ownerOf(tokenId) == _msgSender(), "Exception on Burn: Your are not the owner");
+
+        // Añadir una capsula mas a quemados
+        // No se puede hacer soFar-available por que no cuenta los publicSale
+        burnedCapsules[ownerOf(tokenId)] += 1;
+        totalBurnedCapsules.increment();
+
+        _burn(tokenId);
+    }
+
+    function adminBurn(uint256 tokenId) public virtual {
+        require(hasRole(BURNER_ROLE, _msgSender()), "Exception in Burn: caller has no BURNER ROLE");
+        //require(ownerOf(tokenId) == _msgSender(), "Exception on Burn: Your are not the owner");
 
         // Añadir una capsula mas a quemados
         // No se puede hacer soFar-available por que no cuenta los publicSale
@@ -230,20 +224,6 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable, Ownable {
         bulkMint(_msgSender(), amount);
     }
 
-    /*
-    function publicPurchaseChest(uint32 amount) external payable {        
-        require(!suspended, "The contract is temporaly suspended");
-        require(publicSale, "Exception: public sale not opened");
-        require(msg.value>=priceInMatic() * amount, "Not enough funds sent!");
-        require(_tokenIdTracker.current()+amount <= limitCapsules + hiddenCapsules, "There are no more capsules to mint... sorry!");
-        
-        available[_msgSender()]+=amount;
-        
-        //Mint the chest to the payer
-        bulkMint(_msgSender(), amount);
-    }
-    */
-
     function adminMint(address _to) public {
         require(hasRole(MINTER_ROLE, _msgSender()), "Exception in mint: You dont have the minter role.");
         
@@ -284,22 +264,6 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
         bulkMint(_msgSender(), amount);
     }
-
-    /*
-    function publicAcceptPayment(uint32 amount) public {
-        require(!suspended, "The contract is temporaly suspended");
-        require(publicSale, "Exception: public sale not opened");
-        require(_tokenIdTracker.current()+amount <= limitCapsules + hiddenCapsules, "There are no more capsules to mint... sorry!");
-        
-        uint256 convertPrice = 1000000000000000000 * priceCapsule;
-
-        bool success = tokenUSDC.transferFrom(_msgSender(), address(this), amount * convertPrice);
-        require(success, "Could not transfer token. Missing approval?");
-
-        available[_msgSender()]+=amount;
-        bulkMint(_msgSender(), amount);
-    }
-    */
    
     function GetAllowance() public view returns(uint256) {
        return tokenUSDC.allowance(msg.sender, address(this));
