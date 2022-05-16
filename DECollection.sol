@@ -238,7 +238,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         _burn(tokenId);
     }
 
-    function adminBurn(uint256 tokenId) public virtual {
+    function adminBurn(uint256 tokenId) public {
         require(hasRole(BURNER_ROLE, _msgSender()), "Exception on Burn: You do not have permission");
 
         uint tipo = getTokenType(tokenId);
@@ -247,7 +247,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         _burn(tokenId);
     }
 
-    function bulkBurn(uint256[] memory tokenIds) public virtual {
+    function bulkBurn(uint256[] memory tokenIds) public {
 
         for(uint i = 0; i < tokenIds.length; i++){
             burn(tokenIds[i]);
@@ -507,7 +507,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         if(rewardsCollect[id].specialReward) {
             _specialCards.adminMint(_msgSender(), rewardsCollect[id].nftReward);
         } else {
-            adminMint(_msgSender(), rewardsCollect[id].nftReward);
+            mintRewardCards(_msgSender(), rewardsCollect[id].nftReward);
         }
         rewardsCollect[id].limitCounter.increment();
 
