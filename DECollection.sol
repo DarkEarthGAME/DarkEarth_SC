@@ -450,6 +450,13 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         _rewardsTracker.increment();
     }
 
+    function setUsedCard(uint tokenId, bool toggle) public {
+        require(tokenId < _tokenIdTracker.current(), "This token not exist.");
+        require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
+        
+        tokenInfo[tokenId].usado = toggle;
+    }
+
     function setOnOffReward(uint256 rewardId, bool toggle) public {
         require(!suspended, "The contract is temporaly suspended.");
         require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
@@ -509,6 +516,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         } else {
             mintRewardCards(_msgSender(), rewardsCollect[id].nftReward);
         }
+        
         rewardsCollect[id].limitCounter.increment();
 
     }
