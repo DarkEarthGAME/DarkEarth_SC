@@ -13,20 +13,18 @@
 */
 
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.13;
 
 // Smart Contracts imports
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import "./DESpecials.sol";
-
-contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
+contract DECollection is ERC721Enumerable, AccessControlEnumerable {
 
     using Strings for uint256;
+    using Counters for Counters.Counter;
     /**********************************************
      **********************************************
                        VARIABLES
@@ -36,15 +34,11 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     // Variables de suspensión de funcionalidades
     bool suspended = false; // Suspender funciones generales del SC
 
-    // Walet para comprobar la firma
+    // Wallet para comprobar la firma
     address private signAddr;
-
-    // Smart Contract - Special Cards
-    DESpecials internal _specialCards;
 
     string private _baseURIExtend;
 
-    using Counters for Counters.Counter;
     Counters.Counter private _tokenIdTracker;
     
     //Adds support for OpenSea
@@ -53,20 +47,16 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
     //Roles of minter and burner
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant WITHDRAW_ROLE = keccak256("WITHDRAW_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
-    bytes32 public constant EXPANSION_ROLE = keccak256("EXPANSION_ROLE");
-    
     
     //Royaties address and amnount
     address payable private _royaltiesAddress;
-    uint96 private _royaltiesBasicPoints;    
+    uint96 private _royaltiesBasicPoints;  
+    uint96 private maxRoyaltiePoints = 1500;  
 
     // --> Control del Supply
-    Counters.Counter private _typesTracker;
 
     struct nftSup {
-        uint256 generalIdCard; // ID General de la carta
         uint256 sMax;
         Counters.Counter sNow;
         Counters.Counter burned;
@@ -77,9 +67,8 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
     // --> Control tokenId + INFO
     struct nftInfo {
-        uint256 idCard; // ID General de la carta
-        uint256 serialNumber;
         uint256 tipo;
+        uint256 serialNumber;
         bool usado;
     }
 
@@ -88,19 +77,15 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     // Controlar la TX que ya se han registrado
     mapping(string => bool) private txRewarded;
 
-    // Recompensas
-    Counters.Counter private _rewardsTracker;
-
-    struct reward {
-        uint256[] nftNeeds;
-        uint256[] nftReward;
-        uint256 limit;
-        Counters.Counter limitCounter;
-        bool active;
-        bool specialReward;
+    // Security - MultiOwner
+    struct approveMap {
+        address approveAddress;
+        uint8 apprFunction;
     }
 
-    mapping(uint256 => reward) private rewardsCollect;
+    mapping(address => bool) owners;
+    mapping(address => approveMap) approvedFunction;
+    Counters.Counter private _ownersTracker;
     
     /**********************************************
      **********************************************
@@ -110,43 +95,50 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     constructor() ERC721("Dark Earth Collection", "DEC") {
 
         // URI por defecto
-        _baseURIExtend = "https://nfthub.darkearth.gg/cards/";
+        _baseURIExtend = "https://nft-hub.darkearth.gg/cards/";
 
         // Dirección que comprueba la firma
         signAddr = _msgSender();
 
-        // El creador tiene todos los permisos
-        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _setupRole(MINTER_ROLE, _msgSender());
-        _setupRole(WITHDRAW_ROLE, _msgSender());
-
         //Royaties address and amount
         _royaltiesAddress=payable(address(this)); //Contract creator by default
-        _royaltiesBasicPoints=500; //5% default
+        _royaltiesBasicPoints=1000; //10% default
+
+        // MultiOwner
+        owners[0xfA3219264DB69fC37dD95E234E3807F5b6DD3cAE] = true;
+        _ownersTracker.increment();
+        owners[0x70d75a95E799D467e42eA6bC14dC9ca3E3dC5742] = true;
+        _ownersTracker.increment();
 
     }
 
     /**********************************************
      **********************************************
-                    ERC721 STANDART
+                    ERC721 STANDARD
     **********************************************                    
     **********************************************/
 
     receive() external payable {}
 
     function withdraw(uint amount) external {
-        require(hasRole(WITHDRAW_ROLE, _msgSender()), "Exception: must have withdraw role to retire funds");
+        require(checkApproved(_msgSender(), 16), "You do not have permissions");
         payable(_msgSender()).transfer(amount);
     }
 
     /**********************************************
-    **********************************************
-                    SPECIAL CARDS
+     **********************************************
+                    ROLES SYSTEM
     **********************************************                    
     **********************************************/
 
-    function setSpecialCardsAddress(address addr) public onlyOwner {
-        _specialCards = DESpecials(addr);
+    function addRole(address _to, bytes32 rol, bool grant) external {
+        require(checkApproved(_msgSender(), 17), "You have not been approved to run this function");
+        
+        if(grant) {
+            _grantRole(rol, _to);
+        } else {
+            _revokeRole(rol, _to);
+        }
     }
 
     /**********************************************
@@ -155,38 +147,14 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     **********************************************                    
     **********************************************/
 
-    // Añadir Supply individual
-    function addSupply(uint idC, uint tipo, uint amount) public {
-        require(!suspended, "The contract is temporaly suspended.");
-        require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
-
-        nftSupply[tipo].generalIdCard = idC;
-        nftSupply[tipo].sMax = amount;
-
-    }
-
     // Añadir supply masivo
-    function addBulkSupply(uint[] memory idGeneral, uint[] memory tipos, uint[] memory amount) public {
-        require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
+    function addBulkSupply(uint[] memory tipos, uint[] memory amount) external {
+        require(checkApproved(_msgSender(), 1), "You do not have permissions");
+        require(tipos.length == amount.length, "Array sizes do not match");
 
         for(uint i = 0; i < tipos.length; i++) {
-            addSupply(idGeneral[i], tipos[i], amount[i]);
+            nftSupply[tipos[i]].sMax = amount[i];
         }
-
-    }
-
-    // Añadir supply masivo por tipo general
-    function addBulkSupplyByGeneralType(uint idGeneral, uint[] memory tipos, uint[] memory amount) public {
-        require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
-
-        for(uint i = 0; i < tipos.length; i++) {
-            addSupply(idGeneral, tipos[i], amount[i]);
-        }
-
-    }
-
-    function getGeneralIdCardSupply(uint tipo) public view returns(uint) {
-        return nftSupply[tipo].generalIdCard;
     }
 
     function getMaxSupply(uint tipo) public view returns(uint) {
@@ -206,26 +174,17 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
 
         bool respuesta = false;
 
-        // Representa que este tipo no se ha inicializado
-        if(nftSupply[tipo].sMax == 0) {
-
-            respuesta = false;
-
-        // Cuando ya el valor es 1 (inicializado) empiezo a comprobar Supply
-        } else if(nftSupply[tipo].sNow.current() < nftSupply[tipo].sMax) {
-
+        if(nftSupply[tipo].sNow.current() < nftSupply[tipo].sMax) {
             respuesta = true;
-
         }
 
         return respuesta;
-
     }
 
     /**********************************************
      **********************************************
                         BURNER
-    **********************************************                    
+    **********************************************
     **********************************************/
 
     function burn(uint256 tokenId) public virtual {
@@ -238,19 +197,20 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         _burn(tokenId);
     }
 
-    function adminBurn(uint256 tokenId) public {
-        require(hasRole(BURNER_ROLE, _msgSender()), "Exception on Burn: You do not have permission");
-
-        uint tipo = getTokenType(tokenId);
-        nftSupply[tipo].burned.increment();
-
-        _burn(tokenId);
-    }
-
-    function bulkBurn(uint256[] memory tokenIds) public {
-
+    function bulkBurn(uint256[] memory tokenIds) external {
         for(uint i = 0; i < tokenIds.length; i++){
             burn(tokenIds[i]);
+        }
+    }
+
+    function bulkAdminBurn(uint256[] memory tokenIds) external {
+        require(!suspended, "The contract is temporaly suspended");
+        require(hasRole(BURNER_ROLE, _msgSender()), "Exception on Burn: You do not have permission");
+
+        for(uint i = 0; i < tokenIds.length; i++){
+            uint tipo = getTokenType(tokenIds[i]);
+            nftSupply[tipo].burned.increment();
+            _burn(tokenIds[i]);
         }
     }
 
@@ -260,59 +220,41 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
               SETTERS AND GETTERS
     **********************************************                    
     **********************************************/
-
-    function mintCards(uint[] memory cardsIds, string[] memory txIds, bytes memory firma) public {
-
+    function mintCards(uint[] memory cardsIds, string[] memory txIds, bytes memory firma) external {
         require(!suspended, "The contract is temporaly suspended.");
         require(isSigValid(generaMensaje(cardsIds, txIds), firma), "SIGNATURE ERROR: What are you trying to do?");
-        require(checkLength(cardsIds, txIds), "LENGTH ERROR: Data malformed");
         require(!checkTx(txIds), "ERROR: This transaction is already in our system.");
 
         for(uint i = 0; i < cardsIds.length; i++) {
             require(checkSupply(cardsIds[i]), "SUPPLY ERROR: Not enough of this type.");
-            mint(_msgSender(), cardsIds[i], getGeneralIdCardSupply(cardsIds[i]));
+            mint(_msgSender(), cardsIds[i]);
         }
     }
 
-    
-    function mintRewardCards(address _to, uint[] memory cardsIds) internal {
-        require(!suspended, "The contract is temporaly suspended.");
-
-        for(uint i = 0; i < cardsIds.length; i++) {
-            require(checkSupply(cardsIds[i]), "SUPPLY ERROR: Not enough of this type.");
-            mint(_to, cardsIds[i], getGeneralIdCardSupply(cardsIds[i]));
-        }
-    }
-    
-
-    function adminMint(address _to, uint[] memory cardsIds) public {
+    function adminMint(address _to, uint[] memory cardsIds) external {
         require(!suspended, "The contract is temporaly suspended.");
         require(hasRole(MINTER_ROLE, _msgSender()), "You dont have Minter role! Sorry");
-
+ 
         for(uint i = 0; i < cardsIds.length; i++) {
             require(checkSupply(cardsIds[i]), "SUPPLY ERROR: Not enough of this type.");
-            mint(_to, cardsIds[i], getGeneralIdCardSupply(cardsIds[i]));
+            mint(_to, cardsIds[i]);
         }
     }
 
-    function mint(address _to, uint _tipo, uint _idCard) internal {
-        require(!suspended, "The contract is temporaly suspended"); 
-
+    function mint(address _to, uint _tipo) internal {
         // Aumento el Supply Actual de ese tipo
         nftSupply[_tipo].sNow.increment(); 
-
-        // Guardo ID del token -> Tipo
-        tokenInfo[_tokenIdTracker.current()].serialNumber = nftSupply[_tipo].sNow.current();
-        tokenInfo[_tokenIdTracker.current()].idCard = _idCard;
-        tokenInfo[_tokenIdTracker.current()].tipo = _tipo;
-        tokenInfo[_tokenIdTracker.current()].usado = false;
-
-        // Minteo la carta
-        _mint(_to, _tokenIdTracker.current());
 
         // Aumento el contador
         _tokenIdTracker.increment();
 
+        // Guardo ID del token -> Tipo
+        tokenInfo[_tokenIdTracker.current()].serialNumber = nftSupply[_tipo].sNow.current();
+        tokenInfo[_tokenIdTracker.current()].tipo = _tipo;
+        tokenInfo[_tokenIdTracker.current()].usado = false;
+
+        // Minteo la carta
+        _safeMint(_to, _tokenIdTracker.current());
     } 
 
     /**********************************************
@@ -328,25 +270,20 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         string memory aux;
 
         for(uint i = 0; i < cardsIds.length;i++){
-
-            aux = string(abi.encodePacked("C", Strings.toString(cardsIds[i]),","));
+            aux = string(abi.encodePacked(Strings.toString(cardsIds[i]),","));
             mensaje = string(abi.encodePacked(mensaje, aux));
-
         }
 
         for(uint j = 0; j < txIds.length; j++) {
-
             if(j == txIds.length-1) {
                 mensaje = string(abi.encodePacked(mensaje, txIds[j]));
             } else {
                 aux = string(abi.encodePacked(txIds[j],","));
                 mensaje = string(abi.encodePacked(mensaje, aux));
             }
-            
         }
 
         return mensaje;
-
     }
 
     // Comprobar firma
@@ -357,22 +294,9 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         );
     }
 
-    // Comprueba que se corresponden los tamaños del array
-    // 8 cardsIds por cada txId
-    function checkLength(uint[] memory cardsIds, string[] memory txIds) internal pure returns (bool) {
-        bool respuesta = false;
-
-        if((cardsIds.length % 8) != 0){
-            respuesta = false;
-        } else {
-            if((cardsIds.length/8) == txIds.length) {
-                respuesta = true;
-            } else {
-                respuesta = false;
-            }
-        }
-
-        return respuesta;
+    function setSignAddr(address newSignAddr) public {
+        require(checkApproved(_msgSender(), 2), "You have not been approved to run this function.");
+        signAddr = newSignAddr;
     }
 
     // Comparar dos Strings
@@ -383,49 +307,19 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     // Comprueba que la transacción no esté en el sistema
     // Si no la está añade
     function checkTx(string[] memory txIds) internal returns(bool) {
-
-        string memory aux;
+        require(txIds.length > 0, "Exception in checkTx: There are not Tx Ids to check");
+ 
         bool respuesta = false;
+        uint i = 0;
 
-        if(txIds.length == 1) {
-
-            aux = txIds[0];
-            if(txRewarded[aux]) respuesta = true;
-            txRewarded[aux] = true;
-            
-        } else {
-
-            aux = txIds[0];
-            uint i = 1;
-
-            while(!respuesta && i < txIds.length) {
-
-                if(txRewarded[aux]) {
-
-                    respuesta = true;
-
-                } else {
-
-                    if(i == txIds.length-1){
-
-                        txRewarded[txIds[i]] = true;
-
-                    } else {
-
-                        if(!compareStrings(aux, txIds[i])){
-                            txRewarded[aux] = true;
-                        }
-
-                    }
-                    
-                }
-
-                aux = txIds[i];
-                i += 1;
+        while(!respuesta && i < txIds.length) {
+            if(txRewarded[txIds[i]]) {
+                respuesta = true;
+            } else {
+                txRewarded[txIds[i]] = true;
             }
-            
         }
-
+         
         return respuesta;
     }
 
@@ -435,178 +329,25 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     **********************************************                    
     **********************************************/
 
-    function addReward(uint256[] memory idCardNeeds, uint256[] memory rewards, uint256 limit, bool activo, bool special) public {
-        require(!suspended, "The contract is temporaly suspended.");
-        require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
+    function bulkSetUsedCard(uint256[] memory tokenIds) external {
+        require(tokenIds.length >0, "Exception in bulkSetUsedCard: Array has not Data");
 
-        reward memory aux;
-        aux.nftNeeds = idCardNeeds;
-        aux.nftReward = rewards;
-        aux.active = activo;
-        aux.limit = limit;
-        aux.specialReward = special;
+        for(uint i = 0; i < tokenIds.length; i++) {
+            require(_msgSender() == ownerOf(tokenIds[i]), "You do not have this NFT");
+            require(exists(tokenIds[i]), "This token not exist");
 
-        rewardsCollect[_rewardsTracker.current()] = aux;
-        _rewardsTracker.increment();
-    }
-
-    function setUsedCard(uint tokenId, bool toggle) public {
-        require(tokenId < _tokenIdTracker.current(), "This token not exist.");
-        require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
-        
-        tokenInfo[tokenId].usado = toggle;
-    }
-
-    function setOnOffReward(uint256 rewardId, bool toggle) public {
-        require(!suspended, "The contract is temporaly suspended.");
-        require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
-
-        rewardsCollect[rewardId].active = toggle;
-    }
-
-    function setOnOffSpecialReward(uint256 rewardId, bool toggle) public {
-        require(!suspended, "The contract is temporaly suspended.");
-        require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
-
-        rewardsCollect[rewardId].specialReward = toggle;
-    }
-
-    function setLimitReward(uint256 rewardId, uint256 limit) public {
-        require(!suspended, "The contract is temporaly suspended.");
-        require(owner() == _msgSender() || hasRole(EXPANSION_ROLE, _msgSender()), "You don't have permissions.");
-
-        rewardsCollect[rewardId].limit = limit;
-    }
-
-    function getReward(uint id) public view returns(uint256[] memory nftINeed, uint256[] memory nftRewards, uint256 limit, uint256 limitNow, bool activo, bool specialReward) {
-        require(id < _rewardsTracker.current(), "This rewards not exist.");
-        return (rewardsCollect[id].nftNeeds, rewardsCollect[id].nftReward, rewardsCollect[id].limit, rewardsCollect[id].limitCounter.current(), rewardsCollect[id].active, rewardsCollect[id].specialReward);
-    }
-
-    function canTakeReward(uint id) public view returns(bool) {
-        bool respuesta = false;
-
-        if(id < _rewardsTracker.current() && rewardsCollect[id].active && checkOnlyIdCards(_msgSender(), id)) {
-
-            if(rewardsCollect[id].limit != 0) {
-                if(rewardsCollect[id].limitCounter.current() < rewardsCollect[id].limit){
-                    respuesta = true;
-                }
-            } else {
-                respuesta = true;
-            }
-
+            tokenInfo[tokenIds[i]].usado = true;
         }
-
-        return respuesta;
     }
 
-    function takeReward(uint id) public {
-        require(!suspended, "The contract is temporaly suspended.");
-        require(id < _rewardsTracker.current(), "This rewards not exist.");
-        require(rewardsCollect[id].active, "This reward is not active.");
-        require(checkIdCards(_msgSender(), id), "You do not have the necessary cards to claim the reward.");
-        
-        if(rewardsCollect[id].limit != 0) {
-            require(rewardsCollect[id].limitCounter.current() < rewardsCollect[id].limit, "Finished claims. Reached limit.");
+    function bulkAdminUsedCard(uint256[] memory tokenIds, bool[] memory toggle) external {
+        require(checkApproved(_msgSender(), 4), "You have not been approved to run this function");
+
+        for(uint i = 0; i < tokenIds.length; i++) {
+            require(exists(tokenIds[i]), "This token not exist");
+
+            tokenInfo[tokenIds[i]].usado = toggle[i];
         }
-
-        if(rewardsCollect[id].specialReward) {
-            _specialCards.adminMint(_msgSender(), rewardsCollect[id].nftReward);
-        } else {
-            mintRewardCards(_msgSender(), rewardsCollect[id].nftReward);
-        }
-        
-        rewardsCollect[id].limitCounter.increment();
-
-    }
-
-    function checkIdCards(address _owner, uint256 rId) internal returns(bool) {
-        //uint256[] memory userTokenTypes = getUserTokenTypes(_owner);
-        uint256[] memory tokenIds = getTokenNotUsedIds(_owner);
-        uint256[] memory _nftNeeds = rewardsCollect[rId].nftNeeds;
-        bool[] memory checkingCards = new bool[](_nftNeeds.length);
-
-        bool respuesta = false;
-        uint256 tipo;
-
-        for(uint i = 0; i < _nftNeeds.length; i++) {
-
-            bool ok = false;
-            uint256 counter = 0;
-
-            while(!ok && counter < tokenIds.length) {
-
-                tipo = getTokenIdCard(tokenIds[counter]);
-
-                if(_nftNeeds[i] == tipo) {
-                    checkingCards[i] = true;
-                    tokenInfo[tokenIds[counter]].usado = true;
-                    ok = true;
-                }
-
-                counter += 1;
-            }
-
-        }
-
-        // Se pueden devolver las que faltan para completar
-
-        if(allTrue(checkingCards)) {
-            respuesta = true;
-        }
-
-        return respuesta;
-    }
-
-    function checkOnlyIdCards(address _owner, uint256 rId) internal view returns(bool) {
-        //uint256[] memory userTokenTypes = getUserTokenTypes(_owner);
-        uint256[] memory tokenIds = getTokenNotUsedIds(_owner);
-        uint256[] memory _nftNeeds = rewardsCollect[rId].nftNeeds;
-        bool[] memory checkingCards = new bool[](_nftNeeds.length);
-
-        bool respuesta = false;
-        uint256 tipo;
-
-        for(uint i = 0; i < _nftNeeds.length; i++) {
-
-            bool ok = false;
-            uint256 counter = 0;
-
-            while(!ok && counter < tokenIds.length) {
-
-                tipo = getTokenIdCard(tokenIds[counter]);
-
-                if(_nftNeeds[i] == tipo) {
-                    checkingCards[i] = true;
-                    ok = true;
-                }
-
-                counter += 1;
-            }
-
-        }
-
-        // Se pueden devolver las que faltan para completar
-
-        if(allTrue(checkingCards)) {
-            respuesta = true;
-        }
-
-        return respuesta;
-    }
-
-    function allTrue(bool[] memory datos) internal pure returns(bool) {
-
-        bool ok = true;
-        uint contador = 0;
-        while(contador < datos.length && ok) {
-            if(datos[contador] == false) ok = false;
-            contador += 1;
-        }
-        
-
-        return ok;
     }
 
     /**********************************************
@@ -615,13 +356,17 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     **********************************************                    
     **********************************************/
 
-    function getTokenInfo(uint256 tokenId) public view returns (uint idCard, uint256 typeNft, bool used) {
-        require(tokenId < _tokenIdTracker.current(), "This token does not exist.");
-        return (tokenInfo[tokenId].idCard, tokenInfo[tokenId].tipo, tokenInfo[tokenId].usado);
+    function isTxOnSystem(string memory txId) public view returns(bool) {
+        return txRewarded[txId];
+    }
+
+    function getTokenInfo(uint256 tokenId) public view returns (uint256 typeNft, bool used) {
+        require(exists(tokenId), "This token does not exist.");
+        return (tokenInfo[tokenId].tipo, tokenInfo[tokenId].usado);
     }
 
     function getTokenSerial(uint256 tokenId) public view returns (string memory) {
-        require(tokenId < _tokenIdTracker.current(), "This token does not exist.");
+        require(exists(tokenId), "This token does not exist.");
 
         uint tipo = getTokenType(tokenId);
         string memory nSerie = (tokenInfo[tokenId].serialNumber).toString();
@@ -632,7 +377,6 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     }
 
     function getTokenIds(address _owner) public view returns (uint256[] memory) {
-        
         uint256 ownerTokenCount = balanceOf(_owner);
         uint256[] memory tokenIds = new uint256[](ownerTokenCount);
         for (uint256 i; i < ownerTokenCount; i++)
@@ -670,24 +414,15 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     }
 
     function getTokenType(uint256 tokenId) public view returns (uint256) {
-        require(tokenId < _tokenIdTracker.current(), "That token does not exist.");
+        require(exists(tokenId), "That token does not exist.");
         return tokenInfo[tokenId].tipo;
     }
 
-    function getTokenIdCard(uint256 tokenId) public view returns (uint256) {
-        require(tokenId < _tokenIdTracker.current(), "That token does not exist.");
-        return tokenInfo[tokenId].idCard;
-    }
-
-    
     function getUserTokenTypes(address _owner) public view returns (uint256[] memory) {
         
         uint256[] memory tokenIds = getTokenIds(_owner);
         // -------------------
         uint256[] memory tokenTypes = new uint256[](getDifToken(_owner));
-        for(uint i = 0; i < tokenTypes.length; i++) {
-            tokenTypes[i] = 115792089237316195423570985008687907853269984665640564039457584007913129639935;
-        }
         // -------------------
         uint256 aux;
 
@@ -718,9 +453,6 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         uint256[] memory tokenIds = getTokenIds(_owner);
         // -------------------------
         uint256[] memory tokenTypes = new uint256[](tokenIds.length);
-        for(uint i = 0; i < tokenTypes.length; i++) {
-            tokenTypes[i] = 115792089237316195423570985008687907853269984665640564039457584007913129639935;
-        }
         // -------------------------
         uint256 aux;
 
@@ -761,14 +493,11 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         return contador;
     }
 
-    function getTokenByType(address _owner, uint256 tipo) public view returns (uint256[] memory) {
+    function getTokenByType(address _owner, uint256 tipo) external view returns (uint256[] memory) {
         
         uint256[] memory tokens = getTokenIds(_owner);
         // ------------------------------------
         uint256[] memory tokensIds = new uint256[](tokens.length);
-        for(uint i = 0; i < tokensIds.length; i++) {
-            tokensIds[i] = 115792089237316195423570985008687907853269984665640564039457584007913129639935;
-        }
         // ------------------------------------
 
         uint8 k = 0;
@@ -791,7 +520,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
     }
 
     
-    function getTokenBalances(address _owner) public view returns (uint256[] memory, uint256[] memory) {
+    function getTokenBalances(address _owner) external view returns (uint256[] memory, uint256[] memory) {
         
         uint256[] memory tokenTypes = getUserTokenTypes(_owner);
         uint256[] memory tokenAmount = new uint256[](tokenTypes.length);
@@ -815,12 +544,9 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         return suspended;
     }
 
-    function suspend() public onlyOwner {
-        suspended = true;
-    }
-
-    function resume() public onlyOwner {
-        suspended = false;
+    function toggleSuspend(bool value) public {
+        require(checkApproved(_msgSender(), 7), "You have not been approved to run this function.");
+        suspended = value;
     }
 
     /**********************************************
@@ -850,8 +576,9 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         return string(abi.encodePacked(_base, _msgUri, ".json"));
     }
 
-    function setBaseURI(string memory newUri) external onlyOwner() {
-            _baseURIExtend = newUri;
+    function setBaseURI(string memory newUri) external {
+        require(checkApproved(_msgSender(), 8), "You have not been approved to run this function.");
+        _baseURIExtend = newUri;
     }
 
     /**********************************************
@@ -865,17 +592,21 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         return _exists(tokenId);
     }
 
-    function royaltyInfo(uint256 _tokenId, uint256 _salePrice ) external view returns ( address receiver, uint256 royaltyAmount) {
+    function royaltyInfo(uint256 _tokenId, uint256 _salePrice ) external view returns (address receiver, uint256 royaltyAmount) {
         if(exists(_tokenId))
             return(_royaltiesAddress, (_salePrice * _royaltiesBasicPoints)/10000);        
         return (address(0), 0); 
     }
 
-    function setRoyaltiesAddress(address payable rAddress) public onlyOwner {
+    function setRoyaltiesAddress(address payable rAddress) public {
+        require(checkApproved(_msgSender(), 9), "You have not been approved to run this function");
         _royaltiesAddress=rAddress;
     }
 
-    function setRoyaltiesBasicPoints(uint96 rBasicPoints) public onlyOwner {
+    function setRoyaltiesBasicPoints(uint96 rBasicPoints) public {
+        require(checkApproved(_msgSender(), 10), "You have not been approved to run this function");
+        require(rBasicPoints <= maxRoyaltiePoints, "Royaties error: Limit reached");
+        
         _royaltiesBasicPoints=rBasicPoints;
     }  
 
@@ -900,7 +631,8 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         return super.isApprovedForAll(_owner, _operator);
     }
 
-    function setOpenSeaAddress(address newAdd) public onlyOwner {
+    function setOpenSeaAddress(address newAdd) public {
+        require(checkApproved(_msgSender(), 11), "You have not been approved to run this function.");
         OpenSeaAddress = newAdd;
     }
 
@@ -908,4 +640,69 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable, Ownable {
         return OpenSeaAddress;
     }
 
+    /*****************************************
+                MULTI-OWNER SECURITY
+    ******************************************/
+
+    function existOwner(address addr) internal view returns(bool) {
+        return owners[addr];
+    }
+
+    function checkApproved(address user, uint8 idFunc) internal returns(bool) {
+        require(existOwner(user), "This is not a wallet from a owner");
+        bool aprobado = false;
+        if(approvedFunction[user].apprFunction == idFunc) {
+            aprobado = true;
+            clearApprove(user);
+        }
+        return aprobado;
+    }
+
+    function approveOwner(uint8 idFunc, address owner) external {
+        require(existOwner(_msgSender()), "You are not owner");
+        require(existOwner(owner), "This is not a wallet from a owner");
+        require(_msgSender() != owner, "You cannot authorize yourself");
+        approvedFunction[owner].apprFunction = idFunc;
+        approvedFunction[owner].approveAddress = _msgSender();
+    }
+
+    function clearApprove(address owner) public {
+        require(existOwner(_msgSender()), "You are not owner");
+        require(existOwner(owner), "This is not a wallet from a owner");
+
+        if (_msgSender() != owner) {
+            require(approvedFunction[owner].approveAddress == _msgSender(), "You have not given this authorization");
+        }
+
+        approvedFunction[owner].apprFunction = 0;
+        approvedFunction[owner].approveAddress = address(0);
+    }
+
+    /*****************************************
+                CONTROL DE OWNERS
+    ******************************************/
+
+    function addOwner(address newOwner) public {
+        require(checkApproved(_msgSender(), 12), "You have not been approved to run this function");
+        
+        owners[newOwner] = true;
+        _ownersTracker.increment();
+        
+        
+    }
+
+    function delOwner(address addr) public {
+        require(checkApproved(_msgSender(), 13), "You have not been approved to run this function");
+
+        owners[addr] = false;
+        _ownersTracker.decrement();
+        approvedFunction[addr].apprFunction = 0;
+        approvedFunction[addr].approveAddress = address(0);
+
+        
+    }
+
+    function getTotalOwners() public view returns(uint){
+        return _ownersTracker.current();
+    }
 }
