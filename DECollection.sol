@@ -157,15 +157,15 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         }
     }
 
-    function getMaxSupply(uint tipo) public view returns(uint) {
+    function getMaxSupply(uint tipo) external view returns(uint) {
         return nftSupply[tipo].sMax;
     }
 
-    function getNowSupply(uint tipo) public view returns(uint) {
+    function getNowSupply(uint tipo) external view returns(uint) {
         return nftSupply[tipo].sNow.current();
     }
 
-    function getBurnedAmount(uint tipo) public view returns(uint) {
+    function getBurnedAmount(uint tipo) external view returns(uint) {
         return nftSupply[tipo].burned.current();
     }
 
@@ -294,7 +294,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         );
     }
 
-    function setSignAddr(address newSignAddr) public {
+    function setSignAddr(address newSignAddr) external {
         require(checkApproved(_msgSender(), 2), "You have not been approved to run this function.");
         signAddr = newSignAddr;
     }
@@ -356,16 +356,16 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     **********************************************                    
     **********************************************/
 
-    function isTxOnSystem(string memory txId) public view returns(bool) {
+    function isTxOnSystem(string memory txId) external view returns(bool) {
         return txRewarded[txId];
     }
 
-    function getTokenInfo(uint256 tokenId) public view returns (uint256 typeNft, bool used) {
+    function getTokenInfo(uint256 tokenId) external view returns (uint256 typeNft, bool used) {
         require(exists(tokenId), "This token does not exist.");
         return (tokenInfo[tokenId].tipo, tokenInfo[tokenId].usado);
     }
 
-    function getTokenSerial(uint256 tokenId) public view returns (string memory) {
+    function getTokenSerial(uint256 tokenId) external view returns (string memory) {
         require(exists(tokenId), "This token does not exist.");
 
         uint tipo = getTokenType(tokenId);
@@ -379,13 +379,13 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     function getTokenIds(address _owner) public view returns (uint256[] memory) {
         uint256 ownerTokenCount = balanceOf(_owner);
         uint256[] memory tokenIds = new uint256[](ownerTokenCount);
-        for (uint256 i; i < ownerTokenCount; i++)
+        for (uint256 i = 0; i < ownerTokenCount; i++)
             tokenIds[i] = tokenOfOwnerByIndex(_owner, i);
 
         return tokenIds;
     }
 
-    function getTokenNotUsedIds(address _owner) public view returns (uint256[] memory) {
+    function getTokenNotUsedIds(address _owner) external view returns (uint256[] memory) {
         
         uint256 ownerTokenCount = balanceOf(_owner);
         uint256[] memory tokenIds = new uint256[](ownerTokenCount);
@@ -393,11 +393,11 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         uint256 aux;
         uint256 contador = 0;
 
-        for (uint256 i; i < ownerTokenCount; i++) {
+        for (uint256 i = 0; i < ownerTokenCount; i++) {
 
             aux = tokenOfOwnerByIndex(_owner, i);
 
-            if(tokenInfo[aux].usado == false) {
+            if(!tokenInfo[aux].usado) {
                 tokenIds[contador] = aux;
                 contador += 1;
             }
@@ -540,11 +540,11 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     **********************************************/
 
     // Suspender funcionalidades general del SC
-    function isSuspend() public view returns (bool) {
+    function isSuspend() external view returns (bool) {
         return suspended;
     }
 
-    function toggleSuspend(bool value) public {
+    function toggleSuspend(bool value) external {
         require(checkApproved(_msgSender(), 7), "You have not been approved to run this function.");
         suspended = value;
     }
@@ -598,12 +598,12 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         return (address(0), 0); 
     }
 
-    function setRoyaltiesAddress(address payable rAddress) public {
+    function setRoyaltiesAddress(address payable rAddress) external {
         require(checkApproved(_msgSender(), 9), "You have not been approved to run this function");
         _royaltiesAddress=rAddress;
     }
 
-    function setRoyaltiesBasicPoints(uint96 rBasicPoints) public {
+    function setRoyaltiesBasicPoints(uint96 rBasicPoints) external {
         require(checkApproved(_msgSender(), 10), "You have not been approved to run this function");
         require(rBasicPoints <= maxRoyaltiePoints, "Royaties error: Limit reached");
         
@@ -631,12 +631,12 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         return super.isApprovedForAll(_owner, _operator);
     }
 
-    function setOpenSeaAddress(address newAdd) public {
+    function setOpenSeaAddress(address newAdd) external {
         require(checkApproved(_msgSender(), 11), "You have not been approved to run this function.");
         OpenSeaAddress = newAdd;
     }
 
-    function getOpenSeaAddress() public view returns (address) {
+    function getOpenSeaAddress() external view returns (address) {
         return OpenSeaAddress;
     }
 
@@ -682,7 +682,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
                 CONTROL DE OWNERS
     ******************************************/
 
-    function addOwner(address newOwner) public {
+    function addOwner(address newOwner) external {
         require(checkApproved(_msgSender(), 12), "You have not been approved to run this function");
         
         owners[newOwner] = true;
@@ -691,7 +691,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         
     }
 
-    function delOwner(address addr) public {
+    function delOwner(address addr) external {
         require(checkApproved(_msgSender(), 13), "You have not been approved to run this function");
 
         owners[addr] = false;
@@ -702,7 +702,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         
     }
 
-    function getTotalOwners() public view returns(uint){
+    function getTotalOwners() external view returns(uint){
         return _ownersTracker.current();
     }
 }

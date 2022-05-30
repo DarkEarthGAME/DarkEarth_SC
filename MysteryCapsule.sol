@@ -394,7 +394,8 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
 
     function withdrawUSDC(uint amount) external {
         require(checkApproved(_msgSender(), 18), "You have not been approved to run this function.");
-        tokenUSDC.transfer(_msgSender(), amount);
+        bool itsOk = tokenUSDC.transfer(_msgSender(), amount);
+        require(itsOk, "Could not transfer token.");
     }
    
     // ------------------------------------------------------
@@ -421,159 +422,159 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     **********************************************                    
     **********************************************/
 
-    function getWhitelistedPeople() public view returns (uint256) {
+    function getWhitelistedPeople() external view returns (uint256) {
         return peopleWhitelisted.current();
     }
 
-    function getTotalBurnedCapsules() public view returns (uint256) {
+    function getTotalBurnedCapsules() external view returns (uint256) {
         return totalBurnedCapsules.current();
     }
 
-    function getChests(address _owner) public view returns (uint256[] memory) {
+    function getChests(address _owner) external view returns (uint256[] memory) {
         uint256 ownerTokenCount = balanceOf(_owner);
         uint256[] memory tokenIds = new uint256[](ownerTokenCount);
-        for (uint256 i; i < ownerTokenCount; i++)
+        for (uint256 i = 0; i < ownerTokenCount; i++)
             tokenIds[i] = tokenOfOwnerByIndex(_owner, i);
 
         return tokenIds;
     }
 
-    function getDefaultPrice() public view returns (uint32) {
+    function getDefaultPrice() external view returns (uint32) {
         return priceCapsule;
     }
 
-    function setDefaultPrice(uint32 newPrice) public {
+    function setDefaultPrice(uint32 newPrice) external {
         require(checkApproved(_msgSender(), 3), "You have not been approved to run this function.");
         priceCapsule=newPrice;
     }
 
-    function setAggregator(address aggr) public {
+    function setAggregator(address aggr) external {
         require(checkApproved(_msgSender(), 4), "You have not been approved to run this function.");
         aggregator=aggr;
     }
 
-    function getAggregator() public view returns (address) {
+    function getAggregator() external view returns (address) {
         return aggregator;
     }
 
-    function setOpenSeaAddress(address newAdd) public {
+    function setOpenSeaAddress(address newAdd) external {
         require(checkApproved(_msgSender(), 5), "You have not been approved to run this function.");
         OpenSeaAddress = newAdd;
     }
 
-    function getOpenSeaAddress() public view returns (address) {
+    function getOpenSeaAddress() external view returns (address) {
         return OpenSeaAddress;
     }
 
-    function setUSDCAddress(address usdc) public {
+    function setUSDCAddress(address usdc) external {
         require(checkApproved(_msgSender(), 6), "You have not been approved to run this function.");
         addrUSDC=usdc;
     }
 
-    function getUSDCAddress() public view returns (address) {
+    function getUSDCAddress() external view returns (address) {
         return addrUSDC;
     }
 
-    function setLimitChest(uint32 limit) public {
+    function setLimitChest(uint32 limit) external {
         require(checkApproved(_msgSender(), 7), "You have not been approved to run this function.");
         limitCapsules=limit;
     }
 
-    function getLimitChest() public view returns (uint32) {
+    function getLimitChest() external view returns (uint32) {
         return limitCapsules;
     }
 
-    function getLimitPresale() public view returns (uint32) {
+    function getLimitPresale() external view returns (uint32) {
         return limitPresale;
     }
 
-    function getCounterPresale() public view returns (uint32) {
+    function getCounterPresale() external view returns (uint32) {
         return presaleCounter;
     }
 
-    function getRewardsCounter() public view returns (uint256) {
+    function getRewardsCounter() external view returns (uint256) {
         return rewardsCapsules.current();
     }
 
-    function getTotalMintedChests() public view returns (uint256) {
+    function getTotalMintedChests() external view returns (uint256) {
         return _tokenIdTracker.current();
     }
 
-    function getBurnedCapsules(address ownerId) public view returns (uint32) {
+    function getBurnedCapsules(address ownerId) external view returns (uint32) {
         return burnedCapsules[ownerId];
     }
 
-    function getMintableChest(address ownerId) public view returns (uint256) {
+    function getMintableChest(address ownerId) external view returns (uint256) {
         return available[ownerId];
     }
 
-    function isWhitelisted(address ownerId) public view returns (bool) {
+    function isWhitelisted(address ownerId) external view returns (bool) {
         return whitelistedSoFar[ownerId]>0;
     }
 
-    function getTotalWhitelisted(address ownerId) public view returns (uint256) {
+    function getTotalWhitelisted(address ownerId) external view returns (uint256) {
         return whitelistedSoFar[ownerId];
     }
 
     // Cantidad por defecto a mintear -> PRE-SALE
-    function setDefaultMintAmount(uint32 defAmount) public {
+    function setDefaultMintAmount(uint32 defAmount) external {
         require(checkApproved(_msgSender(), 8), "You have not been approved to run this function.");
         defaultMintAmount=defAmount;
     }     
 
     // Cantidad limite de capsulas en Pre-Sale
-    function setDefaultLimitPresale(uint32 defLimit) public {
+    function setDefaultLimitPresale(uint32 defLimit) external {
         require(checkApproved(_msgSender(), 21), "You have not been approved to run this function.");
         limitPresale=defLimit;
     }
 
-    function getDefaultMintAmount() public view returns (uint32) {
+    function getDefaultMintAmount() external view returns (uint32) {
         return defaultMintAmount;
     }
 
     // Activar o desactivar la transferencia de NFTs
-    function isApprovedTransfer() public view returns (bool) {
+    function isApprovedTransfer() external view returns (bool) {
         return approvedTransfer;
     }
 
-    function toggleApprovedTransfer(bool value) public {
+    function toggleApprovedTransfer(bool value) external {
         require(checkApproved(_msgSender(), 9), "You have not been approved to run this function.");
         approvedTransfer = value;
     }
 
     // Activar o desactivar la venta publica
-    function isPublicSale() public view returns (bool) {
+    function isPublicSale() external view returns (bool) {
         return publicSale;
     }
 
-    function enablePublicSale() public {
+    function enablePublicSale() external {
         require(checkApproved(_msgSender(), 10), "You have not been approved to run this function.");
         publicSale = true;
         priceCapsule = 20;
     }
 
-    function suspendPublicSale() public {
+    function suspendPublicSale() external {
         require(checkApproved(_msgSender(), 11), "You have not been approved to run this function.");
         publicSale = false;
         priceCapsule = 15;
     }
 
     // Suspender funcionalidades general del SC
-    function isSuspend() public view returns (bool) {
+    function isSuspend() external view returns (bool) {
         return suspended;
     }
 
-    function toggleSuspend(bool value) public {
+    function toggleSuspend(bool value) external {
         require(checkApproved(_msgSender(), 12), "You have not been approved to run this function.");
         suspended = value;
     }
 
     // Suspender la función de añadir en WL
-    function isSuspendWL() public view returns (bool) {
+    function isSuspendWL() external view returns (bool) {
         return suspendedWL;
     }
 
-    function toggleSuspendWL(bool value) public {
+    function toggleSuspendWL(bool value) external {
         require(checkApproved(_msgSender(), 13), "You have not been approved to run this function.");
         suspendedWL = value;
     }
@@ -621,12 +622,12 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         return (address(0), 0); 
     }
 
-    function setRoyaltiesAddress(address payable rAddress) public {
+    function setRoyaltiesAddress(address payable rAddress) external {
         require(checkApproved(_msgSender(), 14), "You have not been approved to run this function.");
         _royaltiesAddress=rAddress;
     }
 
-    function setRoyaltiesBasicPoints(uint96 rBasicPoints) public {
+    function setRoyaltiesBasicPoints(uint96 rBasicPoints) external {
         require(checkApproved(_msgSender(), 15), "You have not been approved to run this function");
         require(rBasicPoints <= maxRoyaltiePoints, "Royaties error: Limit reached");
         _royaltiesBasicPoints=rBasicPoints;
@@ -721,14 +722,14 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
                 CONTROL DE OWNERS
     ******************************************/
 
-    function addOwner(address newOwner) public {
+    function addOwner(address newOwner) external {
         require(checkApproved(_msgSender(), 16), "You have not been approved to run this function");
         
         owners[newOwner] = true;
         _ownersTracker.increment();
     }
 
-    function delOwner(address addr) public {
+    function delOwner(address addr) external {
         require(checkApproved(_msgSender(), 17), "You have not been approved to run this function");
 
         owners[addr] = false;
@@ -737,7 +738,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         approvedFunction[addr].approveAddress = address(0);
     }
 
-    function getTotalOwners() public view returns(uint){
+    function getTotalOwners() external view returns(uint){
         return _ownersTracker.current();
     }
 }
