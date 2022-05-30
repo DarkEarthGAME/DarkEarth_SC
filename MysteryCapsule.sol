@@ -684,7 +684,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
                 MULTI-OWNER SECURITY
     ******************************************/
 
-    function existOwner(address addr) internal view returns(bool) {
+    function existOwner(address addr) public view returns(bool) {
         return owners[addr];
     }
 
