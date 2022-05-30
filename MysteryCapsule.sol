@@ -133,11 +133,6 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
 
         // Interfaz para pagos en USDC
         tokenUSDC = IERC20(addrUSDC);
-
-        // El creador tiene todos los permisos
-        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _setupRole(WHITELIST_ROLE, _msgSender());
-        _setupRole(ADMIN_ROLE, _msgSender());
        
         //Royaties address and amount
         _royaltiesAddress=payable(address(this)); //Contract creator by default
