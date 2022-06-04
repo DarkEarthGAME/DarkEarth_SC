@@ -50,10 +50,9 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     bool suspended = true; // Suspender funciones generales del SC
     bool suspendedWL = false; // Suspender función de WL
     bool publicSale = false; // Al poner a true se activa la venta publica (Sin restricciones)
-    bool approvedTransfer = false; // Aprobar la transferencia de NFTs
 
     // Precio por cada capsula
-    uint32 priceCapsule = 15; // USD natural
+    uint256 priceCapsule = 15; // USD natural
     
     // Cantidad por defecto por Wallet
     uint32 defaultMintAmount = 20;
@@ -78,7 +77,6 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
     bytes32 public constant WHITELIST_ROLE = keccak256("WHITELIST_ROLE");
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant PARTNER_ROLE = keccak256("PARTNER_ROLE");
     
     //Royaties address and amnount
     address payable private _royaltiesAddress;
@@ -89,22 +87,15 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     //Works both as counter and as whitelist
     mapping(address => uint32) private available;
 
-    mapping(address => uint32) private whitelistedSoFar;
-
     mapping(address => uint32) private burnedCapsules;
+
+    mapping(address => Counters.Counter) totalWalletMinted;
 
     // Free mints
     mapping(address => uint32) private freeMints;
-    Counters.Counter private totalFreeMints;
     Counters.Counter private totalUsedFreeMints;
-
-    struct detailPartnerMint {
-        uint32 amount;
-        uint32 price;
-    }
-
-    // Partner mints
-    mapping(address => detailPartnerMint) partnerMints;
+    uint256 totalFreeMints;
+    
 
     // ---------------
     // Security
@@ -161,36 +152,28 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     }
 
     // ------------------------------
-    // AÑADIR NUEVO PARTNER
-    // ------------------------------
-
-    function addPartner(address _to, uint32 amount, uint32 price) external {
-        require(checkApproved(_msgSender(), 22), "You have not been approved to run this function");
-        
-        partnerMints[_to].amount = amount;
-        partnerMints[_to].price = price;
-        _grantRole(PARTNER_ROLE, _to);
-    }
-
-    // ------------------------------
     // AÑADIR WHITELIST
     // ------------------------------
     function addToWhitelist(address _to, uint32 amount) public {
         require(!suspendedWL, "The contract is temporaly suspended for Whitelist");
-        require(whitelistedSoFar[_to]+amount <= defaultMintAmount, "Cannot assign more chests to mint than allowed");
+        require(totalWalletMinted[_to].current() + amount <= defaultMintAmount, "Cannot assign more chests to mint than allowed");
+        require(amount >= totalWalletMinted[_to].current(), "Exception in WL: Amount need higher than total minted per user.");
         require(hasRole(WHITELIST_ROLE, _msgSender()), "Exception in WL: You do not have the whitelist role");
 
         // Añadir uno mas al contador de gente en la WL
-        if(whitelistedSoFar[_to] == 0) peopleWhitelisted.increment();
+        if(totalWalletMinted[_to].current() == 0) peopleWhitelisted.increment();
 
-        available[_to]+=amount;
-        whitelistedSoFar[_to]+=amount;
-        
+        available[_to] = amount;        
     }
 
     function bulkDefaultAddToWhitelist(address[] memory _to) external {
         for (uint i=0; i < _to.length; i++)
             addToWhitelist(_to[i], defaultMintAmount);
+    }
+    
+    function delWhitelist(address _to) external {
+        require(checkApproved(_msgSender(), 22), "You have not been approved to run this function");
+        available[_to] = 0;
     }
 
     // ------------------------------
@@ -201,24 +184,26 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         require(checkApproved(_msgSender(), 2), "You have not been approved to run this function");
         
         for (uint i=0; i < _to.length; i++) {
-            freeMints[_to[i]] += amount[i];
-            totalFreeMints.increment();
+            require(totalFreeMints + amount[i] <= limitRewards, "Rewards limit reached. Check amount.");
+            freeMints[_to[i]] = amount[i];
+            totalFreeMints += amount[i];
         }
     }
 
     function bulkTakeFreeMint() external {
         require(!suspended, "The contract is temporaly suspended");
         require(freeMints[_msgSender()] > 0, "Exception in bulkTakeFreeMint: You dont have free mints");
-        require(_tokenIdTracker.current() < limitCapsules + rewardsCapsules.current(), "There are no more capsules to mint... sorry!");
+        require(_tokenIdTracker.current() < limitCapsules + limitRewards, "There are no more capsules to mint... sorry!");
 
         for(uint i = 0; i < freeMints[_msgSender()]; i++) {
-
             _safeMint(_msgSender(), _tokenIdTracker.current());
-
-            freeMints[_msgSender()] -= 1;
             _tokenIdTracker.increment();
             totalUsedFreeMints.increment();
+            rewardsCapsules.increment();
+            totalWalletMinted[_msgSender()].increment();
         }
+
+        freeMints[_msgSender()] = 0;
     }
 
     function getWalletFreeMints(address _to) view external returns (uint32) {
@@ -226,11 +211,16 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     }
 
     function getTotalFreeMint() view external returns (uint256) {
-        return totalFreeMints.current();
+        return totalFreeMints;
     }
 
     function getTotalUsedFreeMint() view external returns (uint256) {
         return totalUsedFreeMints.current();
+    }
+
+    function delFreeMints(address _to) external {
+        require(checkApproved(_msgSender(), 25), "You have not been approved to run this function");
+        freeMints[_to] = 0;
     }
 
     // ------------------------------
@@ -253,6 +243,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     }
     
     function adminBulkBurn(uint256[] memory tokenIds) external {
+        require(!suspended, "The contract is temporaly suspended");
         require(hasRole(BURNER_ROLE, _msgSender()), "Exception in Burn: caller has no BURNER ROLE");
         for(uint i = 0; i < tokenIds.length; i++) {
             burnedCapsules[ownerOf(tokenIds[i])] += 1;
@@ -266,16 +257,15 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         require(!suspended, "The contract is temporaly suspended");
         require(_tokenIdTracker.current() < limitCapsules + rewardsCapsules.current(), "There are no more capsules to mint... sorry!");
         
-        if(!hasRole(PARTNER_ROLE, _to)) {
-            if(!publicSale){
-                require(available[_to]> 0, "Exception in mint: You have not available capsules to mint");
-                available[_to] = available[_to] - 1;
-            }
+        if(!publicSale){
+            require(available[_to]> 0, "Exception in mint: You have not available capsules to mint");
+            available[_to] = available[_to] - 1;
         }
 
         _safeMint(_to, _tokenIdTracker.current());
         
         _tokenIdTracker.increment();
+        totalWalletMinted[_to].increment();
     } 
 
     function bulkMint(address _to, uint32 amount) internal {
@@ -289,24 +279,13 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         require(!suspended, "The contract is temporaly suspended");
         require(amount > 0, "Exception in purchaseChest: Amount has to be higher than 0");
         require(_tokenIdTracker.current() + amount < limitCapsules + rewardsCapsules.current(), "There are no more capsules to mint... sorry!");
+        require(msg.value >= priceInMatic() * amount, "Not enough funds sent!");
 
-        if(hasRole(PARTNER_ROLE, _msgSender())){
-            require(partnerMints[_msgSender()].amount != 0, "Exception in purchasePartnerChest: Amount not config.");
-            require(partnerMints[_msgSender()].price != 0, "Exception in purchasePartnerChest: Price not config.");
-            require(partnerMints[_msgSender()].amount >= amount, "Exception in purchasePartnerChest: You are not allowed to buy this amount.");
-            require(msg.value >= priceInMatic(partnerMints[_msgSender()].price) * amount, "Not enough funds sent!");
-            if((partnerMints[_msgSender()].amount - amount) == 0) {
-                _revokeRole(PARTNER_ROLE, _msgSender());
-            }
-            partnerMints[_msgSender()].amount -= amount;
-        } else {
-            require(msg.value >= priceInMatic(priceCapsule) * amount, "Not enough funds sent!");
-            if(!publicSale){
-                require(presaleCounter + 1 < limitPresale, "Exception in purchaseChest: Pre-Sale Sold-out");
-                require(presaleCounter + amount < limitPresale, "Exception in purchaseChest: There are less capsules availables");
-                require(available[_msgSender()]>=amount, "Exception in purchaseChest: cannot mint so many chests");
-                presaleCounter += amount;
-            }
+        if(!publicSale){
+            require(presaleCounter + 1 < limitPresale, "Exception in purchaseChest: Pre-Sale Sold-out");
+            require(presaleCounter + amount < limitPresale, "Exception in purchaseChest: There are less capsules availables");
+            require(available[_msgSender()]>=amount, "Exception in purchaseChest: cannot mint so many chests");
+            presaleCounter += amount;
         }
 
         //Mint the chest to the payer
@@ -314,15 +293,18 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     }
 
     function adminMint(address _to) public {
+        require(!suspended, "The contract is temporaly suspended");
         require(hasRole(MINTER_ROLE, _msgSender()), "Exception in mint: You dont have the minter role.");
         require(rewardsCapsules.current() + 1 < limitRewards, "Exception in adminMint: Limit reached.");
         
         _safeMint(_to, _tokenIdTracker.current());        
         _tokenIdTracker.increment();
         rewardsCapsules.increment();
+        totalWalletMinted[_to].increment();
     }
 
     function bulkAdminMint(address _to, uint32 amount) external {
+        require(amount < 0, "Amount need to be higher than zero.");
         for (uint i=0; i<amount; i++) {        
             adminMint(_to);
         }
@@ -330,13 +312,13 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
 
     function bulkAdminPartnerMint(address _to, uint32 amount) external {
         require(amount > 0, "Exception in bulkAdminPartnerMint: Amount has to be higher than 0");
-        require(hasRole(PARTNER_ROLE, _to), "Exception in mint: Target dont have PARTNER ROLE.");
-
         require(checkApproved(_msgSender(), 24), "You have not been approved to run this function.");
+        require(_tokenIdTracker.current() + amount < limitCapsules + rewardsCapsules.current(), "There are no more capsules to mint... sorry!");
 
         for (uint i=0; i < amount; i++) {        
             _safeMint(_to, _tokenIdTracker.current());        
             _tokenIdTracker.increment();
+            totalWalletMinted[_to].increment();
         }
     }
 
@@ -353,25 +335,14 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
 
         uint256 convertPrice;
 
-        if(hasRole(PARTNER_ROLE, _msgSender())){
-            require(partnerMints[_msgSender()].amount != 0, "Exception in purchasePartnerChest: Amount not config.");
-            require(partnerMints[_msgSender()].price != 0, "Exception in purchasePartnerChest: Price not config.");
-            require(partnerMints[_msgSender()].amount >= amount, "Exception in purchasePartnerChest: You are not allowed to buy this amount.");
-            if((partnerMints[_msgSender()].amount - amount) == 0) {
-                _revokeRole(PARTNER_ROLE, _msgSender());
-            }
-            partnerMints[_msgSender()].amount -= amount;
-            convertPrice = 1000000000000000000 * partnerMints[_msgSender()].price;
-        } else {
-            if(!publicSale){
-                require(presaleCounter + 1 < limitPresale, "Exception in AcceptPayment: Pre-Sale Sold-out");
-                require(presaleCounter+amount < limitPresale, "Exception in AcceptPayment: There are less capsules availables");
-                require(available[_msgSender()]>=amount, "AcceptPayment: cannot mint so many chests");
-                presaleCounter += amount;
-            }
-
-            convertPrice = 1000000000000000000 * priceCapsule;
+        if(!publicSale){
+            require(presaleCounter + 1 < limitPresale, "Exception in AcceptPayment: Pre-Sale Sold-out");
+            require(presaleCounter+amount < limitPresale, "Exception in AcceptPayment: There are less capsules availables");
+            require(available[_msgSender()]>=amount, "AcceptPayment: cannot mint so many chests");
+            presaleCounter += amount;
         }
+
+        convertPrice = 1000000000000000000 * priceCapsule;
 
         bool success = tokenUSDC.transferFrom(_msgSender(), address(this), amount * convertPrice);
         require(success, "Could not transfer token. Missing approval?");
@@ -402,15 +373,6 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         payable(_msgSender()).transfer(amount);
     }
 
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal virtual override(ERC721Enumerable) {
-
-        if(from != address(0) && to != address(0)) {
-            require(approvedTransfer, "Transfers are temporarily suspended.");
-        }
-
-        super._beforeTokenTransfer(from, to, tokenId);
-    }
-
     /**********************************************
      **********************************************
                   GETTERs Y SETTERs
@@ -434,11 +396,11 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         return tokenIds;
     }
 
-    function getDefaultPrice() external view returns (uint32) {
+    function getDefaultPrice() external view returns (uint256) {
         return priceCapsule;
     }
 
-    function setDefaultPrice(uint32 newPrice) external {
+    function setDefaultPrice(uint256 newPrice) external {
         require(checkApproved(_msgSender(), 3), "You have not been approved to run this function.");
         priceCapsule=newPrice;
     }
@@ -503,12 +465,12 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         return available[ownerId];
     }
 
-    function isWhitelisted(address ownerId) external view returns (bool) {
-        return whitelistedSoFar[ownerId]>0;
+    function getMintedCapsules(address ownerId) external view returns (uint256) {
+        return totalWalletMinted[ownerId].current();
     }
 
-    function getTotalWhitelisted(address ownerId) external view returns (uint256) {
-        return whitelistedSoFar[ownerId];
+    function isWhitelisted(address ownerId) external view returns (bool) {
+        return available[ownerId] > 0;
     }
 
     // Cantidad por defecto a mintear -> PRE-SALE
@@ -525,16 +487,6 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
 
     function getDefaultMintAmount() external view returns (uint32) {
         return defaultMintAmount;
-    }
-
-    // Activar o desactivar la transferencia de NFTs
-    function isApprovedTransfer() external view returns (bool) {
-        return approvedTransfer;
-    }
-
-    function toggleApprovedTransfer(bool value) external {
-        require(checkApproved(_msgSender(), 9), "You have not been approved to run this function.");
-        approvedTransfer = value;
     }
 
     // Activar o desactivar la venta publica
@@ -659,8 +611,8 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         return priceFeed.decimals();
     }
 
-    function priceInMatic(uint32 price) public view returns (uint256) {
-        return 1000000000000000000 * price * uint256(10 ** uint256(decimals())) / uint256(getLatestPrice());
+    function priceInMatic() public view returns (uint256) {
+        return 1000000000000000000 * priceCapsule * uint256(10 ** uint256(decimals())) / uint256(getLatestPrice());
     }
 
     function getLatestPrice() public view returns (int) {
