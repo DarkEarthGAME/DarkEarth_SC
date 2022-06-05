@@ -306,9 +306,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
 
     // Comprueba que la transacción no esté en el sistema
     // Si no la está añade
-    function checkTx(string[] memory txIds) internal returns(bool) {
-        require(txIds.length > 0, "Exception in checkTx: There are not Tx Ids to check");
- 
+    function checkTx(string[] memory txIds) internal returns(bool) { 
         bool respuesta = false;
         uint i = 0;
 
@@ -318,6 +316,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
             } else {
                 txRewarded[txIds[i]] = true;
             }
+            i += 1;
         }
          
         return respuesta;
