@@ -169,6 +169,10 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         return nftSupply[tipo].burned.current();
     }
 
+    function getCirculatingSupply(uint tipo) public view returns(uint256) {
+        return nftSupply[tipo].sNow.current() - nftSupply[tipo].burned.current();
+    }
+
     // Comprobar el Supply de cada carta
     function checkSupply(uint tipo) internal view returns (bool) {
 

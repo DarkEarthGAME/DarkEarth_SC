@@ -95,7 +95,6 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     mapping(address => uint32) private freeMints;
     Counters.Counter private totalUsedFreeMints;
     uint256 totalFreeMints;
-    
 
     // ---------------
     // Security
@@ -155,13 +154,13 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     // AÑADIR WHITELIST
     // ------------------------------
     function addToWhitelist(address _to, uint32 amount) public {
+        require(amount > 0, "Amount need to be higher than zero");
         require(!suspendedWL, "The contract is temporaly suspended for Whitelist");
         require(totalWalletMinted[_to].current() + amount <= defaultMintAmount, "Cannot assign more chests to mint than allowed");
-        require(amount >= totalWalletMinted[_to].current(), "Exception in WL: Amount need higher than total minted per user.");
         require(hasRole(WHITELIST_ROLE, _msgSender()), "Exception in WL: You do not have the whitelist role");
 
         // Añadir uno mas al contador de gente en la WL
-        if(totalWalletMinted[_to].current() == 0) peopleWhitelisted.increment();
+        if(totalWalletMinted[_to].current() == 0 && available[_to] == 0) peopleWhitelisted.increment();
 
         available[_to] = amount;        
     }
@@ -172,7 +171,8 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     }
     
     function delWhitelist(address _to) external {
-        require(checkApproved(_msgSender(), 22), "You have not been approved to run this function");
+        require(hasRole(WHITELIST_ROLE, _msgSender()), "Exception in WL: You do not have the whitelist role");
+        if (totalWalletMinted[_to].current() == 0 && available[_to] != 0) peopleWhitelisted.decrement();
         available[_to] = 0;
     }
 
@@ -182,11 +182,15 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     function bulkAddFreeMint(address[] memory _to, uint32[] memory amount) external {
         require(_to.length == amount.length, "Exception in buldAddFreeMint: Array sizes");
         require(checkApproved(_msgSender(), 2), "You have not been approved to run this function");
+        uint256 auxFreeMints;
         
         for (uint i=0; i < _to.length; i++) {
-            require(totalFreeMints + amount[i] <= limitRewards, "Rewards limit reached. Check amount.");
+            auxFreeMints = totalFreeMints - freeMints[_to[i]];
+
+            require(auxFreeMints + amount[i] <= limitRewards, "Rewards limit reached. Check amount.");
+            
             freeMints[_to[i]] = amount[i];
-            totalFreeMints += amount[i];
+            totalFreeMints = auxFreeMints + amount[i];
         }
     }
 
@@ -221,6 +225,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     function delFreeMints(address _to) external {
         require(checkApproved(_msgSender(), 25), "You have not been approved to run this function");
         freeMints[_to] = 0;
+        totalFreeMints -= freeMints[_to];
     }
 
     // ------------------------------
@@ -304,7 +309,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     }
 
     function bulkAdminMint(address _to, uint32 amount) external {
-        require(amount < 0, "Amount need to be higher than zero.");
+        require(amount > 0, "Amount need to be higher than zero.");
         for (uint i=0; i<amount; i++) {        
             adminMint(_to);
         }
