@@ -224,8 +224,8 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
 
     function delFreeMints(address _to) external {
         require(checkApproved(_msgSender(), 25), "You have not been approved to run this function");
-        freeMints[_to] = 0;
         totalFreeMints -= freeMints[_to];
+        freeMints[_to] = 0;
     }
 
     // ------------------------------
@@ -475,7 +475,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     }
 
     function isWhitelisted(address ownerId) external view returns (bool) {
-        return available[ownerId] > 0;
+        return (available[ownerId] > 0 || (!publicSale && totalWalletMinted[ownerId].current() > 0 ));
     }
 
     // Cantidad por defecto a mintear -> PRE-SALE
@@ -654,6 +654,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         require(existOwner(_msgSender()), "You are not owner");
         require(existOwner(owner), "This is not a wallet from a owner");
         require(_msgSender() != owner, "You cannot authorize yourself");
+        require(approvedFunction[owner].apprFunction != 0, "There is already a pending authorization for this owner.");
         approvedFunction[owner].apprFunction = idFunc;
         approvedFunction[owner].approveAddress = _msgSender();
     }

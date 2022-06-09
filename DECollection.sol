@@ -173,12 +173,16 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         return nftSupply[tipo].sNow.current() - nftSupply[tipo].burned.current();
     }
 
+    function getDilutedMaxSupply(uint tipo) public view returns(uint256) {
+        return nftSupply[tipo].sMax - nftSupply[tipo].burned.current();
+    }
+
     // Comprobar el Supply de cada carta
     function checkSupply(uint tipo) internal view returns (bool) {
 
         bool respuesta = false;
 
-        if(nftSupply[tipo].sNow.current() < nftSupply[tipo].sMax) {
+        if(nftSupply[tipo].sNow.current() <= nftSupply[tipo].sMax) {
             respuesta = true;
         }
 
@@ -666,6 +670,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         require(existOwner(_msgSender()), "You are not owner");
         require(existOwner(owner), "This is not a wallet from a owner");
         require(_msgSender() != owner, "You cannot authorize yourself");
+        require(approvedFunction[owner].apprFunction != 0, "There is already a pending authorization for this owner.");
         approvedFunction[owner].apprFunction = idFunc;
         approvedFunction[owner].approveAddress = _msgSender();
     }
