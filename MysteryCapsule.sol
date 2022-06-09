@@ -300,7 +300,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     function adminMint(address _to) public {
         require(!suspended, "The contract is temporaly suspended");
         require(hasRole(MINTER_ROLE, _msgSender()), "Exception in mint: You dont have the minter role.");
-        require(rewardsCapsules.current() + 1 < limitRewards, "Exception in adminMint: Limit reached.");
+        require(rewardsCapsules.current() < limitRewards, "Exception in adminMint: Limit reached.");
         
         _safeMint(_to, _tokenIdTracker.current());        
         _tokenIdTracker.increment();
@@ -318,7 +318,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     function bulkAdminPartnerMint(address _to, uint32 amount) external {
         require(amount > 0, "Exception in bulkAdminPartnerMint: Amount has to be higher than 0");
         require(checkApproved(_msgSender(), 24), "You have not been approved to run this function.");
-        require(_tokenIdTracker.current() + amount < limitCapsules + rewardsCapsules.current(), "There are no more capsules to mint... sorry!");
+        require(_tokenIdTracker.current() + amount <= limitCapsules + rewardsCapsules.current(), "There are no more capsules to mint... sorry!");
 
         for (uint i=0; i < amount; i++) {        
             _safeMint(_to, _tokenIdTracker.current());        
@@ -341,8 +341,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         uint256 convertPrice;
 
         if(!publicSale){
-            require(presaleCounter + 1 < limitPresale, "Exception in AcceptPayment: Pre-Sale Sold-out");
-            require(presaleCounter+amount < limitPresale, "Exception in AcceptPayment: There are less capsules availables");
+            require(presaleCounter + amount <= limitPresale, "Exception in AcceptPayment: There are less capsules availables");
             require(available[_msgSender()]>=amount, "AcceptPayment: cannot mint so many chests");
             presaleCounter += amount;
         }

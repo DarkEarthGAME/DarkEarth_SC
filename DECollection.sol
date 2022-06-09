@@ -182,7 +182,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
 
         bool respuesta = false;
 
-        if(nftSupply[tipo].sNow.current() <= nftSupply[tipo].sMax) {
+        if(nftSupply[tipo].sNow.current() < nftSupply[tipo].sMax) {
             respuesta = true;
         }
 
