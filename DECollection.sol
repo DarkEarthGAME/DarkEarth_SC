@@ -363,6 +363,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     }
 
     function bulkAdminUsedCard(uint256[] memory tokenIds, bool[] memory toggle) external {
+        require(tokenIds.length == toggle.length, "Exception in bulkAdminUsedCard: Array sizes");
         require(checkApproved(_msgSender(), 4), "You have not been approved to run this function");
 
         for(uint i = 0; i < tokenIds.length; i++) {
@@ -426,78 +427,12 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
 
         }
 
-        uint256[] memory devuelve = new uint256[](contador);
-
-        for(uint j = 0; j < contador; j++) {
-            devuelve[j] = tokenIds[j];
-        }
-
-        return devuelve;
+        return clearArray(tokenIds, contador);
     }
 
     function getTokenType(uint256 tokenId) public view returns (uint256) {
         require(exists(tokenId), "That token does not exist.");
         return tokenInfo[tokenId].tipo;
-    }
-
-    function getUserTokenTypes(address _owner) public view returns (uint256[] memory) {
-        
-        uint256[] memory tokenIds = getTokenIds(_owner);
-        // -------------------
-        uint256[] memory tokenTypes = new uint256[](getDifToken(_owner));
-        // -------------------
-        uint256 aux;
-
-        uint k = 0;
-
-        for(uint i = 0; i < tokenIds.length; i++) {
-            uint j = 0;
-            bool esta = false;
-            aux = tokenIds[i];
-
-            while(j < tokenTypes.length && !esta) {
-                if(tokenInfo[aux].tipo == tokenTypes[j]) {
-                    esta = true;
-                }
-                j += 1;
-            }
-            if(!esta) {
-                tokenTypes[k] = tokenInfo[aux].tipo;
-                k += 1;
-            }
-        }
-
-        return tokenTypes;
-    }
-
-    function getDifToken(address _owner) public view returns (uint256) {
-        
-        uint256[] memory tokenIds = getTokenIds(_owner);
-        // -------------------------
-        uint256[] memory tokenTypes = new uint256[](tokenIds.length);
-        // -------------------------
-        uint256 aux;
-
-        uint k = 0;
-
-        for(uint i = 0; i < tokenIds.length; i++) {
-            uint j = 0;
-            bool esta = false;
-            aux = tokenIds[i];
-
-            while(j < tokenTypes.length && !esta) {
-                if(tokenInfo[aux].tipo == tokenTypes[j]) {
-                    esta = true;
-                }
-                j += 1;
-            }
-            if(!esta) {
-                tokenTypes[k] = tokenInfo[aux].tipo;
-                k += 1;
-            }
-        }
-
-        return k;
     }
 
     function getTokenTypeCount(address _owner, uint256 tipo) public view returns (uint256) {
@@ -518,9 +453,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     function getTokenByType(address _owner, uint256 tipo) external view returns (uint256[] memory) {
         
         uint256[] memory tokens = getTokenIds(_owner);
-        // ------------------------------------
         uint256[] memory tokensIds = new uint256[](tokens.length);
-        // ------------------------------------
 
         uint8 k = 0;
         
@@ -532,28 +465,16 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         }
 
         require(k > 0, "ERROR: You dont have NFTs of this type.");
-
-        uint256[] memory devuelvo = new uint256[](k);
-        for(uint i = 0; i < k; i++){
-            devuelvo[i] = tokensIds[i];
-        }
-
-        return devuelvo;
+        return clearArray(tokensIds, k);
     }
 
-    
-    function getTokenBalances(address _owner) external view returns (uint256[] memory, uint256[] memory) {
-        
-        uint256[] memory tokenTypes = getUserTokenTypes(_owner);
-        uint256[] memory tokenAmount = new uint256[](tokenTypes.length);
-        
-        for(uint i = 0; i < tokenTypes.length; i++){
-            tokenAmount[i] = getTokenTypeCount(_owner, tokenTypes[i]);
+    function clearArray(uint256[] memory array, uint256 size) internal pure returns(uint256[] memory) {
+        uint256[] memory result = new uint[](size);
+        for(uint256 i = 0; i < size; i++){
+            result[i] = array[i];
         }
-
-        return (tokenTypes, tokenAmount);
+        return result;
     }
-    
 
     /**********************************************
      **********************************************
