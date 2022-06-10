@@ -657,7 +657,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         require(existOwner(_msgSender()), "You are not owner");
         require(existOwner(owner), "This is not a wallet from a owner");
         require(_msgSender() != owner, "You cannot authorize yourself");
-        require(approvedFunction[owner].apprFunction != 0, "There is already a pending authorization for this owner.");
+        require(approvedFunction[owner].apprFunction == 0, "There is already a pending authorization for this owner.");
         approvedFunction[owner].apprFunction = idFunc;
         approvedFunction[owner].approveAddress = _msgSender();
     }
