@@ -86,6 +86,9 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     mapping(address => bool) owners;
     mapping(address => approveMap) approvedFunction;
     Counters.Counter private _ownersTracker;
+
+    // Burned control
+    mapping(address => uint256[]) burnedCards;
     
     /**********************************************
      **********************************************
@@ -202,6 +205,8 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         uint tipo = getTokenType(tokenId);
         nftSupply[tipo].burned.increment();
 
+        burnedCards[ownerOf(tokenId)].push(tokenId);
+
         _burn(tokenId);
     }
 
@@ -218,8 +223,17 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         for(uint i = 0; i < tokenIds.length; i++){
             uint tipo = getTokenType(tokenIds[i]);
             nftSupply[tipo].burned.increment();
+            burnedCards[ownerOf(tokenIds[i])].push(tokenIds[i]);
             _burn(tokenIds[i]);
         }
+    }
+
+    function getBurnedCardsByWallet(address wallet) external view returns(uint256[] memory) {
+        return burnedCards[wallet];
+    }
+
+    function getBurnedLengthCardsByWallet(address wallet) external view returns(uint256) {
+        return burnedCards[wallet].length;
     }
 
     /**********************************************

@@ -87,7 +87,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     //Works both as counter and as whitelist
     mapping(address => uint32) private available;
 
-    mapping(address => uint32) private burnedCapsules;
+    mapping(address => uint256[]) private burnedCapsules;
 
     mapping(address => Counters.Counter) totalWalletMinted;
 
@@ -236,7 +236,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         require(!suspended, "The contract is temporaly suspended");
         require(ownerOf(tokenId) == _msgSender(), "Exception on Burn: Your are not the owner");
 
-        burnedCapsules[ownerOf(tokenId)] += 1;
+        burnedCapsules[ownerOf(tokenId)].push(tokenId);
         totalBurnedCapsules.increment();
 
         _burn(tokenId);
@@ -251,7 +251,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         require(!suspended, "The contract is temporaly suspended");
         require(hasRole(BURNER_ROLE, _msgSender()), "Exception in Burn: caller has no BURNER ROLE");
         for(uint i = 0; i < tokenIds.length; i++) {
-            burnedCapsules[ownerOf(tokenIds[i])] += 1;
+            burnedCapsules[ownerOf(tokenIds[i])].push(tokenIds[i]);
             totalBurnedCapsules.increment();
             _burn(tokenIds[i]);
         }
@@ -461,7 +461,11 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         return _tokenIdTracker.current();
     }
 
-    function getBurnedCapsules(address ownerId) external view returns (uint32) {
+    function getBurnedLengthCapsules(address ownerId) external view returns (uint256) {
+        return burnedCapsules[ownerId].length;
+    }
+
+    function getBurnedCapsules(address ownerId) external view returns (uint256[] memory) {
         return burnedCapsules[ownerId];
     }
 
