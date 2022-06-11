@@ -1,5 +1,4 @@
 /*
-
  _______       ___      .______       __  ___       _______      ___      .______      .___________. __    __  
 |       \     /   \     |   _  \     |  |/  /      |   ____|    /   \     |   _  \     |           ||  |  |  | 
 |  .--.  |   /  ^  \    |  |_)  |    |  '  /       |  |__      /  ^  \    |  |_)  |    `---|  |----`|  |__|  | 
@@ -9,7 +8,6 @@
                                                                                                              
                                 WWW.DARKEARTH.GG by Olympus Origin.
                                  Coded by Jesús Sánchez Fernández
-
 */
 
 //SPDX-License-Identifier: MIT
@@ -124,7 +122,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     receive() external payable {}
 
     function withdraw(uint amount) external {
-        require(checkApproved(_msgSender(), 16), "You do not have permissions");
+        require(checkApproved(_msgSender(), 5), "You do not have permissions");
         payable(_msgSender()).transfer(amount);
     }
 
@@ -135,7 +133,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     **********************************************/
 
     function addRole(address _to, bytes32 rol, bool grant) external {
-        require(checkApproved(_msgSender(), 17), "You have not been approved to run this function");
+        require(checkApproved(_msgSender(), 3), "You have not been approved to run this function");
         
         if(grant) {
             _grantRole(rol, _to);
@@ -631,21 +629,17 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         
         owners[newOwner] = true;
         _ownersTracker.increment();
-        
-        
     }
 
     function delOwner(address addr) external {
-        require(checkApproved(_msgSender(), 13), "You have not been approved to run this function");
+        require(checkApproved(_msgSender(), 6), "You have not been approved to run this function");
 
         owners[addr] = false;
         _ownersTracker.decrement();
         approvedFunction[addr].apprFunction = 0;
         approvedFunction[addr].approveAddress = address(0);
-
-        
     }
-
+   
     function getTotalOwners() external view returns(uint){
         return _ownersTracker.current();
     }

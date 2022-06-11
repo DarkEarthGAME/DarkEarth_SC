@@ -1,5 +1,4 @@
 /*
-
  _______       ___      .______       __  ___       _______      ___      .______      .___________. __    __  
 |       \     /   \     |   _  \     |  |/  /      |   ____|    /   \     |   _  \     |           ||  |  |  | 
 |  .--.  |   /  ^  \    |  |_)  |    |  '  /       |  |__      /  ^  \    |  |_)  |    `---|  |----`|  |__|  | 
@@ -9,7 +8,6 @@
                                                                                                              
                              WWW.DARKEARTH.GG by Olympus Origin.
                             Coded by Javier Nieto & Jesús Sánchez.
-
 */
 
 //SPDX-License-Identifier: MIT
@@ -141,7 +139,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     // ------------------------------
 
     function addRole(address _to, bytes32 rol, bool option) external {
-        require(checkApproved(_msgSender(), 23), "You have not been approved to run this function");
+        require(checkApproved(_msgSender(), 22), "You have not been approved to run this function");
         
         if(option) {
             _grantRole(rol, _to);
@@ -223,7 +221,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     }
 
     function delFreeMints(address _to) external {
-        require(checkApproved(_msgSender(), 25), "You have not been approved to run this function");
+        require(checkApproved(_msgSender(), 1), "You have not been approved to run this function");
         totalFreeMints -= freeMints[_to];
         freeMints[_to] = 0;
     }
@@ -317,7 +315,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
 
     function bulkAdminPartnerMint(address _to, uint32 amount) external {
         require(amount > 0, "Exception in bulkAdminPartnerMint: Amount has to be higher than 0");
-        require(checkApproved(_msgSender(), 24), "You have not been approved to run this function.");
+        require(checkApproved(_msgSender(), 9), "You have not been approved to run this function.");
         require(_tokenIdTracker.current() + amount <= limitCapsules + rewardsCapsules.current(), "There are no more capsules to mint... sorry!");
 
         for (uint i=0; i < amount; i++) {        
