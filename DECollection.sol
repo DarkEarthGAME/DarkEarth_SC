@@ -128,6 +128,18 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
 
     /**********************************************
      **********************************************
+                BATCH TRANSFERENCIAS
+    **********************************************                    
+    **********************************************/
+
+    function bulkSafeTransfer(address _from, address _to, uint256[] calldata tokenIds) external {
+        for (uint256 index = 0; index < tokenIds.length; index++) {
+            safeTransferFrom(_from, _to, tokenIds[index]);
+        }
+    }
+
+    /**********************************************
+     **********************************************
                     ROLES SYSTEM
     **********************************************                    
     **********************************************/
@@ -149,7 +161,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     **********************************************/
 
     // Añadir supply masivo
-    function addBulkSupply(uint[] memory tipos, uint[] memory amount) external {
+    function addBulkSupply(uint[] calldata tipos, uint[] calldata amount) external {
         require(checkApproved(_msgSender(), 1), "You do not have permissions");
         require(tipos.length == amount.length, "Array sizes do not match");
 
@@ -208,13 +220,13 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         _burn(tokenId);
     }
 
-    function bulkBurn(uint256[] memory tokenIds) external {
+    function bulkBurn(uint256[] calldata tokenIds) external {
         for(uint i = 0; i < tokenIds.length; i++){
             burn(tokenIds[i]);
         }
     }
 
-    function bulkAdminBurn(uint256[] memory tokenIds) external {
+    function bulkAdminBurn(uint256[] calldata tokenIds) external {
         require(!suspended, "The contract is temporaly suspended");
         require(hasRole(BURNER_ROLE, _msgSender()), "Exception on Burn: You do not have permission");
 
@@ -240,7 +252,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
               SETTERS AND GETTERS
     **********************************************                    
     **********************************************/
-    function mintCards(uint[] memory cardsIds, string[] memory txIds, bytes memory firma) external {
+    function mintCards(uint[] calldata cardsIds, string[] calldata txIds, bytes calldata firma) external {
         require(!suspended, "The contract is temporaly suspended.");
         require(isSigValid(generaMensaje(cardsIds, txIds), firma), "SIGNATURE ERROR: What are you trying to do?");
         require(!checkTx(txIds), "ERROR: This transaction is already in our system.");
@@ -251,7 +263,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         }
     }
 
-    function adminMint(address _to, uint[] memory cardsIds) external {
+    function adminMint(address _to, uint[] calldata cardsIds) external {
         require(!suspended, "The contract is temporaly suspended.");
         require(hasRole(MINTER_ROLE, _msgSender()), "You dont have Minter role! Sorry");
  
@@ -349,7 +361,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     **********************************************                    
     **********************************************/
 
-    function bulkSetUsedCard(uint256[] memory tokenIds) external {
+    function bulkSetUsedCard(uint256[] calldata tokenIds) external {
         require(tokenIds.length >0, "Exception in bulkSetUsedCard: Array has not Data");
 
         for(uint i = 0; i < tokenIds.length; i++) {
@@ -360,7 +372,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         }
     }
 
-    function bulkAdminUsedCard(uint256[] memory tokenIds, bool[] memory toggle) external {
+    function bulkAdminUsedCard(uint256[] calldata tokenIds, bool[] calldata toggle) external {
         require(tokenIds.length == toggle.length, "Exception in bulkAdminUsedCard: Array sizes");
         require(checkApproved(_msgSender(), 4), "You have not been approved to run this function");
 

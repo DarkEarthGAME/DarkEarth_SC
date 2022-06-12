@@ -163,7 +163,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         available[_to] = amount;        
     }
 
-    function bulkDefaultAddToWhitelist(address[] memory _to) external {
+    function bulkDefaultAddToWhitelist(address[] calldata _to) external {
         for (uint i=0; i < _to.length; i++)
             addToWhitelist(_to[i], defaultMintAmount);
     }
@@ -177,7 +177,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     // ------------------------------
     //  FREE MINTs
     // ------------------------------
-    function bulkAddFreeMint(address[] memory _to, uint32[] memory amount) external {
+    function bulkAddFreeMint(address[] calldata _to, uint32[] calldata amount) external {
         require(_to.length == amount.length, "Exception in buldAddFreeMint: Array sizes");
         require(checkApproved(_msgSender(), 2), "You have not been approved to run this function");
         uint256 auxFreeMints;
@@ -240,12 +240,12 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         _burn(tokenId);
     }
 
-    function bulkBurn(uint256[] memory tokenIds) external {
+    function bulkBurn(uint256[] calldata tokenIds) external {
         for(uint i = 0; i < tokenIds.length; i++)
             burn(tokenIds[i]);
     }
     
-    function adminBulkBurn(uint256[] memory tokenIds) external {
+    function adminBulkBurn(uint256[] calldata tokenIds) external {
         require(!suspended, "The contract is temporaly suspended");
         require(hasRole(BURNER_ROLE, _msgSender()), "Exception in Burn: caller has no BURNER ROLE");
         for(uint i = 0; i < tokenIds.length; i++) {
@@ -322,6 +322,18 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
             _safeMint(_to, _tokenIdTracker.current());        
             _tokenIdTracker.increment();
             totalWalletMinted[_to].increment();
+        }
+    }
+
+    /**********************************************
+     **********************************************
+                BATCH TRANSFERENCIAS
+    **********************************************                    
+    **********************************************/
+
+    function bulkSafeTransfer(address _from, address _to, uint256[] calldata tokenIds) external {
+        for (uint256 index = 0; index < tokenIds.length; index++) {
+            safeTransferFrom(_from, _to, tokenIds[index]);
         }
     }
 
