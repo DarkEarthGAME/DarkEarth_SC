@@ -281,12 +281,12 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     function purchaseChest(uint32 amount) external payable {
         require(!suspended, "The contract is temporaly suspended");
         require(amount > 0, "Exception in purchaseChest: Amount has to be higher than 0");
-        require(_tokenIdTracker.current() + amount < limitCapsules + rewardsCapsules.current(), "There are no more capsules to mint... sorry!");
+        require(_tokenIdTracker.current() + amount <= limitCapsules + rewardsCapsules.current(), "There are no more capsules to mint... sorry!");
         require(msg.value >= priceInMatic() * amount, "Not enough funds sent!");
 
         if(!publicSale){
-            require(presaleCounter + 1 < limitPresale, "Exception in purchaseChest: Pre-Sale Sold-out");
-            require(presaleCounter + amount < limitPresale, "Exception in purchaseChest: There are less capsules availables");
+            require(presaleCounter < limitPresale, "Exception in purchaseChest: Pre-Sale Sold-out");
+            require(presaleCounter + amount <= limitPresale, "Exception in purchaseChest: There are less capsules availables");
             require(available[_msgSender()]>=amount, "Exception in purchaseChest: cannot mint so many chests");
             presaleCounter += amount;
         }
@@ -334,11 +334,12 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     function AcceptPayment(uint32 amount) external {
         require(amount > 0, "Exception in AcceptPayment: Amount has to be higher than 0");
         require(!suspended, "The contract is temporaly suspended");
-        require(_tokenIdTracker.current()+amount < limitCapsules + rewardsCapsules.current(), "There are no more capsules to mint... sorry!");
+        require(_tokenIdTracker.current() + amount <= limitCapsules + rewardsCapsules.current(), "There are no more capsules to mint... sorry!");
 
         uint256 convertPrice;
 
         if(!publicSale){
+            require(presaleCounter < limitCapsules, "Exception in AcceptPayment: Pre-Sale SOLD-OUT");
             require(presaleCounter + amount <= limitPresale, "Exception in AcceptPayment: There are less capsules availables");
             require(available[_msgSender()]>=amount, "AcceptPayment: cannot mint so many chests");
             presaleCounter += amount;
