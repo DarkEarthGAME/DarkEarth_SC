@@ -6,8 +6,9 @@
 |  '--'  | /  _____  \  |  |\  \----.|  .  \       |  |____  /  _____  \  |  |\  \----.    |  |     |  |  |  | 
 |_______/ /__/     \__\ | _| `._____||__|\__\      |_______|/__/     \__\ | _| `._____|    |__|     |__|  |__| 
                                                                                                              
-                             WWW.DARKEARTH.GG by Olympus Origin.
-                            Coded by Javier Nieto & Jesús Sánchez.
+                             WWW.DARKEARTH.GG by Olympus Origin
+                            Coded by Javier Nieto & Jesús Sánchez
+                                    Juan Palomo Cisneros
 */
 
 //SPDX-License-Identifier: MIT

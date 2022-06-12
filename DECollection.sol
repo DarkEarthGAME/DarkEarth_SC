@@ -7,7 +7,7 @@
 |_______/ /__/     \__\ | _| `._____||__|\__\      |_______|/__/     \__\ | _| `._____|    |__|     |__|  |__| 
                                                                                                              
                                 WWW.DARKEARTH.GG by Olympus Origin.
-                                 Coded by Jesús Sánchez Fernández
+                        Coded by Jesús Sánchez Fernández & Juan Palomo Cisneros
 */
 
 //SPDX-License-Identifier: MIT
