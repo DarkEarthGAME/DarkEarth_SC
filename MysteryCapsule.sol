@@ -48,6 +48,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     bool suspended = true; // Suspender funciones generales del SC
     bool suspendedWL = false; // Suspender función de WL
     bool publicSale = false; // Al poner a true se activa la venta publica (Sin restricciones)
+    bool approvedTransfer = false;
 
     // Precio por cada capsula
     uint256 priceCapsule = 15; // USD natural
@@ -259,6 +260,8 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
     function mint(address _to) internal {
         require(!suspended, "The contract is temporaly suspended");
         require(_tokenIdTracker.current() < limitCapsules + rewardsCapsules.current(), "There are no more capsules to mint... sorry!");
+
+        if(_tokenIdTracker.current() == limitCapsules-1) internalEnableTransfer();
         
         if(!publicSale){
             require(available[_to]> 0, "Exception in mint: You have not available capsules to mint");
@@ -327,7 +330,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
 
     /**********************************************
      **********************************************
-                BATCH TRANSFERENCIAS
+                   TRANSFERENCIAS
     **********************************************                    
     **********************************************/
 
@@ -335,6 +338,24 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         for (uint256 index = 0; index < tokenIds.length; index++) {
             safeTransferFrom(_from, _to, tokenIds[index]);
         }
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal virtual override(ERC721Enumerable) {
+
+        if(from != address(0) && to != address(0)) {
+            require(approvedTransfer, "Sorry, you have to wait for the sale to end to transfer these NFTs.");
+        }
+
+        super._beforeTokenTransfer(from, to, tokenId);
+    }
+
+    function internalEnableTransfer() internal {
+        approvedTransfer = true;
+    }
+
+    function enableTransfer() external {
+        require(checkApproved(_msgSender(), 23), "You have not been approved to run this function.");
+        approvedTransfer = true;
     }
 
     /**********************************************
