@@ -359,6 +359,10 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         approvedTransfer = true;
     }
 
+    function isApprovedTransfer() external view returns(bool) {
+        return approvedTransfer;
+    }
+
     /**********************************************
      **********************************************
                 PAGOS EN USDC
