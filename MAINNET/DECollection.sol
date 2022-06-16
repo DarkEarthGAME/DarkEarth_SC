@@ -11,7 +11,7 @@
 */
 
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.14;
 
 // Smart Contracts imports
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
@@ -30,7 +30,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     **********************************************/
 
     // Variables de suspensión de funcionalidades
-    bool suspended = false; // Suspender funciones generales del SC
+    bool private suspended = false; // Suspender funciones generales del SC
 
     // Wallet para comprobar la firma
     address private signAddr;
@@ -41,7 +41,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     
     //Adds support for OpenSea
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
-    address OpenSeaAddress = 0x58807baD0B376efc12F5AD86aAc70E78ed67deaE;
+    address private OpenSeaAddress = 0x58807baD0B376efc12F5AD86aAc70E78ed67deaE;
 
     //Roles of minter and burner
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -81,12 +81,12 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
         uint8 apprFunction;
     }
 
-    mapping(address => bool) owners;
-    mapping(address => approveMap) approvedFunction;
+    mapping(address => bool) private owners;
+    mapping(address => approveMap) private approvedFunction;
     Counters.Counter private _ownersTracker;
 
     // Burned control
-    mapping(address => uint256[]) burnedCards;
+    mapping(address => uint256[]) private burnedCards;
     
     /**********************************************
      **********************************************
@@ -327,13 +327,9 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     }
 
     function setSignAddr(address newSignAddr) external {
+        require(newSignAddr != address(0), "Exception in setSignAddr: Address zero.");
         require(checkApproved(_msgSender(), 2), "You have not been approved to run this function.");
         signAddr = newSignAddr;
-    }
-
-    // Comparar dos Strings
-    function compareStrings(string memory a, string memory b) internal pure returns (bool) {
-        return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
     }
 
     // Comprueba que la transacción no esté en el sistema
@@ -552,6 +548,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     }
 
     function setRoyaltiesAddress(address payable rAddress) external {
+        require(rAddress != address(0), "Exception in setRoyaltiesAddress: Address zero.");
         require(checkApproved(_msgSender(), 9), "You have not been approved to run this function");
         _royaltiesAddress=rAddress;
     }
@@ -585,6 +582,7 @@ contract DECollection is ERC721Enumerable, AccessControlEnumerable {
     }
 
     function setOpenSeaAddress(address newAdd) external {
+        require(newAdd != address(0), "Exception in setOpenSeaAddress: Address zero.");
         require(checkApproved(_msgSender(), 11), "You have not been approved to run this function.");
         OpenSeaAddress = newAdd;
     }
