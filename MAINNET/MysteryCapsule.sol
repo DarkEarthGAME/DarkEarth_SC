@@ -123,9 +123,13 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         _royaltiesBasicPoints=1000; //10% default
 
         // Multi-owner
-        owners[0xfA3219264DB69fC37dD95E234E3807F5b6DD3cAE] = true;
+        owners[0xBB092DA2b7c96854ac0b59893a098b0803156b6a] = true;
         _ownersTracker.increment();
-        owners[0x70d75a95E799D467e42eA6bC14dC9ca3E3dC5742] = true;
+		
+        owners[0xd26260934A78B9092BFc5b2518E437B20FE953b2] = true;
+        _ownersTracker.increment();
+		
+		owners[0xB1e2C0F0210d32830E91d2c5ba514FDdA367eC71] = true;
         _ownersTracker.increment();
 
     }
