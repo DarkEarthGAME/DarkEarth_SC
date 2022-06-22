@@ -12,7 +12,7 @@
 */
 
 //SPDX-License-Identifier: MIT
-pragma solidity 0.8.14;
+pragma solidity 0.8.15;
 
 // Smart Contracts imports
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
@@ -249,7 +249,6 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
         require(!suspended, "The contract is temporaly suspended");
         require(hasRole(BURNER_ROLE, _msgSender()), "Exception in Burn: caller has no BURNER ROLE");
         for(uint i = 0; i < tokenIds.length; i++) {
-            burnedCapsules[ownerOf(tokenIds[i])].push(tokenIds[i]);
             totalBurnedCapsules.increment();
             _burn(tokenIds[i]);
         }
@@ -381,7 +380,7 @@ contract MysteryCapsule is ERC721Enumerable, AccessControlEnumerable {
             presaleCounter += amount;
         }
 
-        convertPrice = 1000000000000000000 * priceCapsule;
+        convertPrice = 1000000 * priceCapsule;
 
         bool success = tokenUSDC.transferFrom(_msgSender(), address(this), amount * convertPrice);
         require(success, "Could not transfer token. Missing approval?");
